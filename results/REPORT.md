@@ -1,106 +1,122 @@
-# Swastika Signal (reconstructed) — backtest on MCX Gold & Silver
+# Swastika Signal: real vs rebuild, backtest, and fixes
 
-**Data:** MCX near-month futures, 1-minute bars, 1 Jan 2025 – 23 Sep 2026 (447 sessions).
-Contract rolls are difference back-adjusted (as TradingView's B-ADJ). Signals are
-computed on 1h bars anchored at 09:00, matching the screenshot.
+**Data:** MCX near-month futures, 1-minute bars, 1 Jan 2025 – 23 Sep 2026.
+Rolls are back-adjusted (like TradingView B-ADJ), signals run on 1h bars from 09:00.
+**Execution:** signal on bar close → fill at the next bar's open. Costs per round trip are
+0.02% of notional + 5 ticks slippage per side, plus one extra round trip per roll held.
+All ₹ figures are **net**.
 
-**Execution:** signal on bar close → fill at next bar's open. 1 lot (Silver 30 kg,
-Gold 1 kg). Costs per round trip: 0.02% of notional + 5 ticks slippage per side
-(≈ ₹1,700 Silver, ≈ ₹3,800 Gold), plus one extra round trip for every roll a
-position is held through. All P&L below is **net, in ₹ per 1 lot**.
+## 1. Real indicator vs rebuild
 
-> The original indicator is closed-source. This is a reconstruction from how it
-> draws (see `swastika/indicator.py`), so results describe *this logic*, not
-> necessarily the paid script.
+The user's screenshot shows 9 real Buy/Sell labels on SILVER1! 1h between 21 Jul and
+17 Sep 2026. I read their times off the chart (about ±3 bars of reading error) and
+searched the band settings for the closest match (`research/calibrate.py`).
 
-## Strategies tested
+| Band settings | Labels in that window | Real labels matched (±8 bars) |
+|---|---:|---:|
+| My first guess: ATR 10, ×2 / ×3 | 28 | 5 of 9 |
+| **Calibrated: ATR 20, ×5 / ×6** | **9** | **9 of 9, avg 1.9 bars off** |
 
-| Name | Rule |
-|---|---|
-| `reversal` | Buy label → go long, Sell label → go short. Always in the market. |
-| `ema_filter` | Buy/Sell labels, but only take longs above the 200 EMA and shorts below it; otherwise flat. |
-| `magical` | Enter on Magical BUY / Magical SELL; exit on the opposite Buy/Sell label. |
-| `mtf_filter` | Buy/Sell labels, only when every row of the timeframe table (3m…Day) agrees. |
+The band settings were the problem. My first version flipped about 3× as often as the
+real one, which is where the low win rate and huge drawdown in the first report came
+from. Every setting with an outer multiplier of 6 (ATR 10–40) matched 9/9. The
+inner/outer distances on the 1 Oct screenshot (3.3k / 4.0k from price, ratio 0.82)
+also fit ×5 / ×6.
 
-## Results, 1h, default settings (ATR 10, band ×2/×3, cyan ATR 14 ×5, EMA 200)
+| Real label | Real (screenshot) | Rebuild | Bars off | Day row |
+|---|---|---|---:|---|
+| Buy | 21 Jul 12:00 | 21 Jul 11:00 | −1 | SELL |
+| Sell | 23 Jul 18:00 | 23 Jul 18:00 | 0 | SELL |
+| Buy | 04 Aug 17:00 | 05 Aug 09:00 | +7 (overnight) | SELL |
+| Sell | 19 Aug 09:00 | 19 Aug 09:00 | 0 | SELL |
+| Buy | 19 Aug 20:00 | 19 Aug 19:00 | −1 | SELL |
+| Sell | 27 Aug 09:00 | 26 Aug 23:00 | −1 | SELL |
+| Buy | 03 Sep 19:00 | 03 Sep 20:00 | +1 | SELL |
+| Sell | 10 Sep 17:00 | 10 Sep 20:00 | +3 | SELL |
+| Buy | 17 Sep 22:00 | 18 Sep 10:00 | +3 | SELL |
 
-| Symbol | Strategy | Trades | Win % | Net P&L | Profit factor | Max drawdown | Longs | Shorts |
-|---|---|---:|---:|---:|---:|---:|---:|---:|
-| SILVER | reversal | 212 | 35.8 | ₹53.1 L | 1.37 | −₹45.2 L | +₹42.7 L | +₹10.3 L |
-| SILVER | ema_filter | 115 | 38.3 | ₹42.5 L | 1.54 | −₹32.0 L | +₹53.2 L | −₹10.7 L |
-| SILVER | magical | 129 | 41.1 | ₹45.6 L | 1.52 | −₹27.9 L | +₹44.6 L | +₹1.0 L |
-| SILVER | mtf_filter | 27 | 37.0 | ₹3.1 L | 1.14 | −₹12.8 L | +₹7.1 L | −₹4.0 L |
-| GOLD | reversal | 194 | 37.1 | −₹2.9 L | 0.98 | −₹35.7 L | +₹25.3 L | −₹28.3 L |
-| GOLD | ema_filter | 99 | 43.4 | ₹8.5 L | 1.09 | −₹26.3 L | +₹40.2 L | −₹31.7 L |
-| GOLD | magical | 108 | 48.1 | ₹53.5 L | 1.69 | −₹16.3 L | +₹60.3 L | −₹6.8 L |
-| GOLD | mtf_filter | 32 | 46.9 | ₹9.1 L | 1.40 | −₹7.0 L | +₹18.7 L | −₹9.6 L |
+![real vs rebuild](SILVER_chart_recent.png)
+*Yellow triangles mark the real signals from the screenshot. Labels are the rebuild.*
 
-Buy-and-hold 1 lot over the same period (rolled for free): Silver ₹32.9 L, Gold ₹54.3 L.
+**Not matched:**
+* **Magical BUY/SELL.** The real one is rare: none on these 9 legs, one around 14 Jul,
+  one around 24 Sep. Neither my cyan-trail rule nor any setting I tried reproduces
+  that, so the rebuilt Magical is a guess and isn't used in the recommendation.
+* **"Fake SELL"** (orange, 19 Aug). That Sell was reversed by a Buy 10 bars later.
+  Nothing in the bands or table distinguishes it at the moment it printed (the
+  23 Jul and 27 Aug Sells looked the same). So it is most likely **written on the
+  chart afterwards**, once the reversal happened. A label like that can't be traded:
+  at signal time it was just "Sell".
 
-### By year
+## 2. Backtest of the real Buy/Sell (calibrated settings)
 
-| Symbol | Strategy | 2025 net | PF | 2026 net (to 23 Sep) | PF |
-|---|---|---:|---:|---:|---:|
-| SILVER | reversal | ₹19.7 L | 1.54 | ₹33.4 L | 1.31 |
-| SILVER | magical | ₹18.3 L | 1.86 | ₹27.3 L | 1.42 |
-| GOLD | reversal | −₹2.7 L | 0.96 | −₹0.3 L | 1.00 |
-| GOLD | magical | ₹28.3 L | 2.19 | ₹25.3 L | 1.47 |
+1 lot (Silver 30 kg, Gold 1 kg):
 
-![equity](equity_curves.png)
+| | Trades | Win % | Net P&L | Profit factor | Max drawdown | Worst losing streak |
+|---|---:|---:|---:|---:|---:|---:|
+| **Silver**, my first guess (×3) | 212 | 35.8 | ₹53.1 L | 1.37 | −₹45.2 L | — |
+| **Silver**, real settings (×6) | 69 | 47.8 | ₹63.8 L | 1.91 | −₹15.4 L | 5 |
+| **Gold**, my first guess (×3) | 194 | 37.1 | −₹2.9 L | 0.98 | −₹35.7 L | — |
+| **Gold**, real settings (×6) | 59 | 52.5 | ₹95.6 L | 2.77 | −₹11.1 L | 4 |
 
-## What the numbers say
+The real settings already have about a 50% win rate and ⅓ of the drawdown of my first
+version. They are also the stable middle of the parameter grid (`sensitivity.csv`):
+on 1h, ×5–×6 is the best region for both metals. 15m and 4h are worse.
 
-1. **It's a trend follower: win rate 35–48%, profit comes from a few big trends.**
-   Average win is 2–2.5× the average loss. On Silver the 5 biggest trades are
-   more than 100% of the total profit.
-2. **Silver's profit is mostly one move.** Of `reversal`'s ₹53 L, ₹37 L came in
-   Dec 2025–Jan 2026, when silver went 172k → 420k and back to 229k. Outside
-   those two months: `reversal` +₹15.7 L, `magical` +₹5.0 L, `ema_filter` −₹6.8 L.
-3. **Shorts don't pay.** In a strong 2025–26 bull market for both metals, the
-   short side lost money in 6 of 8 tests. Most of the edge is "be long when
-   the trend is up".
-4. **Magical is the best variant**: fewer trades, higher win rate, smaller
-   drawdowns, and the only one that worked on Gold in both years.
-5. **The full timeframe table as a filter is too strict.** The Day row blocks
-   most signals (27–32 trades in 21 months) and the profit almost disappears.
-6. **Drawdowns are large.** −₹28 L to −₹45 L per Silver lot, during the
-   Feb–May 2026 chop, when silver swung ±10k a day and the bands flipped
-   back and forth for 3 months.
+**In the screenshot window itself (20 Jul – 23 Sep) the real signals lost money:**
+9 trades, 3 winners, **−₹3.2 L per Silver lot**. Silver ranged 220k–255k for two
+months, and a band-flip system always bleeds in a range.
 
-## Robustness (`sensitivity.csv`)
+## 3. Fixing win rate and drawdown
 
-Timeframe matters more than the exact settings:
+Seven variants were fixed up front and tested on both metals, reading 2025 and 2026
+separately (`research/improve.py`, minute-level stops). Sized at **₹20,000 risk per
+trade** (Silver Micro 1 kg units, Gold in 10 g units), so drawdowns are comparable:
 
-| TF | Silver reversal | Silver magical | Gold reversal | Gold magical |
-|---|---:|---:|---:|---:|
-| 15m | ₹139.9 L (PF 1.68) | ₹86.3 L (1.61) | ₹86.4 L (1.31) | ₹81.5 L (1.49) |
-| 30m | ₹40.5 L (1.23) | ₹52.9 L (1.56) | ₹81.7 L (1.46) | ₹49.4 L (1.40) |
-| 1h | ₹53.1 L (1.37) | ₹45.6 L (1.52) | −₹2.9 L (0.98) | ₹53.5 L (1.69) |
-| 2h | ₹69.2 L (1.80) | ₹57.4 L (2.65) | ₹89.3 L (2.11) | ₹58.6 L (2.00) |
-| 4h | ₹67.9 L (2.26) | ₹38.6 L (2.16) | ₹75.4 L (2.44) | ₹45.6 L (2.00) |
+| Variant | Silver win % | Silver PF | Silver max DD | Gold win % | Gold PF | Gold max DD | Holds in both years? |
+|---|---:|---:|---:|---:|---:|---:|---|
+| V0 real Buy/Sell, always in | 48 | 1.97 | −₹62k | 52 | 3.11 | −₹64k | yes |
+| **V1 only with the Day row** | **59** | **3.80** | **−₹43k** | **64** | **6.77** | **−₹31k** | **yes** |
+| V2 fixed 3×ATR stop | 44 | 2.33 | −₹86k | 41 | 2.32 | −₹103k | no (Gold 2026 loses) |
+| V3 band as intrabar trailing stop | 47 | 2.18 | −₹56k | 53 | 2.37 | −₹50k | yes, small gain on DD |
+| V4 skip if ADX < 20 | 40 | 1.16 | −₹99k | 53 | 2.88 | −₹45k | no (Silver near breakeven) |
+| V5 50% off at 1.5R, then breakeven | 54 | 2.16 | −₹73k | 53 | 1.98 | −₹106k | no (Gold 2026 loses) |
+| C1 Day + stop + scale-out + trail | 59 | 3.72 | −₹55k | 64 | 3.78 | −₹46k | yes, weaker than V1 |
 
-On 1h, varying ATR length (10/14/20) and the band multiplier (2.0–4.0) gives
-Silver ₹32 L–₹79 L (all profitable) and Gold −₹2.9 L–₹80.8 L. The default
-1h/×3 setting happens to be Gold's worst cell, so a single setting's result
-says little on its own. The general pattern (profitable in strong trends,
-bleeding in chop) holds everywhere.
+**V1 by year (1 lot):**
 
-15m numbers are the least reliable: they carry 3× the costs, and with real
-fills during fast moves slippage would be well above 5 ticks.
+| | 2025 | 2026 (to 23 Sep) |
+|---|---|---|
+| Silver | 17 trades, 59% wins, PF 8.1, +₹27.0 L | 15 trades, 60% wins, PF 3.2, +₹31.0 L |
+| Gold | 17 trades, 71% wins, PF 10.9, +₹40.4 L | 11 trades, 55% wins, PF 3.3, +₹30.9 L |
 
-## Caveats
+**What works:**
+1. **Use the real settings (ATR 20, ×6), not faster ones.** This is the biggest single
+   improvement.
+2. **Only take Buy/Sell that agree with the Day row** (yesterday's daily band
+   direction). Against-the-Day signals were mostly the whipsaws. Win rate rises
+   ~50% → ~60%, drawdown falls 30–50%, and profit factor roughly doubles. It is the
+   only rule that helped both metals in both years.
+3. **Size by risk, not by lot.** Distance to the band × 30 kg meant one Silver lot
+   risked about ₹0.9 L per trade in mid-2025, ₹6.2 L (median) in Q1 2026, and up to
+   ₹22 L on the worst entry. Fixing the rupee risk per trade (lots = risk ÷ distance
+   to the band) keeps a losing streak at a known size: V1's worst was −2.4R.
 
-* **2025–26 was an exceptional bull market for precious metals.** A trend
-  follower looks good in that regime; this sample has no long sideways or
-  bear year. Don't extrapolate.
-* **Back-adjustment hides overnight gaps at rolls.** The data has only one
-  contract per day, so the roll gap mixes the calendar spread with the real
-  overnight move (up to ~11k on Silver in 2026). Positions held over a roll
-  miss that overnight move.
-* **Near-month only.** The data stays on the expiring contract until expiry
-  day, when it is thin. Real traders roll earlier.
-* **The timeframe table is non-repainting here** (each row uses only finished
-  bars). The live table on TradingView updates intrabar and will look more
-  accurate in hindsight than it was in real time.
-* **No position sizing or stops.** Results are per lot with no stop loss.
-  Drawdowns here are several times the exchange margin for one lot, so real-world size must be much smaller.
+**What doesn't work:**
+* **Tight stops and early profit-taking.** They raise the win rate on paper but cut
+  the big winners that pay for everything. They failed on Gold in 2026.
+* **ADX filter.**
+* **Requiring all 6 table rows to agree.** That leaves only 3–6 trades in 21 months.
+
+## 4. Caveats
+
+* **Small sample:** V1 is 28–32 trades per metal. A win rate of 60% ± 9% is the
+  honest range.
+* **2025–26 was a strong trending period for both metals.** In a 2-month range like
+  Jul–Sep 2026 even V1 lost (−₹2.9 L on Silver: 4 shorts, 1 winner).
+* **Calibration used one Silver screenshot.** Gold is assumed to use the same
+  settings.
+* **The Day row is non-repainting here** (it uses the finished previous day). The live
+  TradingView table updates during the day.
+* **Rolls:** back-adjustment removes the overnight move on roll days.
+  Near-month data stays on the expiring contract until expiry.

@@ -7,10 +7,11 @@ strategy("Swastika Signal (reconstructed) - strategy", shorttitle="SS-clone stra
          default_qty_type=strategy.fixed, default_qty_value=1,
          commission_type=strategy.commission.percent, commission_value=0.01, slippage=5)
 
-mode      = input.string("Magical", "Trade mode", options=["Reversal", "EMA filter", "Magical"])
-stLen     = input.int(10,    "Band ATR length")
-fastMult  = input.float(2.0, "Inner line multiplier", step=0.1)
-slowMult  = input.float(3.0, "Outer line multiplier", step=0.1)
+mode      = input.string("Day filter", "Trade mode", options=["Day filter", "Reversal", "EMA filter", "Magical"],
+     tooltip="Day filter = take Buy/Sell only when the Day row agrees; exit on the opposite label. Best in the Jan 2025 - Sep 2026 backtest.")
+stLen     = input.int(20,    "Band ATR length")
+fastMult  = input.float(5.0, "Inner line multiplier", step=0.1)
+slowMult  = input.float(6.0, "Outer line multiplier", step=0.1)
 cyanLen   = input.int(14,    "Cyan ATR length")
 cyanMult  = input.float(5.0, "Cyan ATR multiplier", step=0.1)
 emaLen    = input.int(200,   "Trend EMA length")
@@ -41,7 +42,18 @@ magicSell = bear and not legFired
 if magicBuy or magicSell
     legFired := true
 
-if mode == "Reversal"
+dayDir = request.security(syminfo.tickerid, "D", -dSlowTV[1], lookahead=barmerge.lookahead_on)
+
+if mode == "Day filter"
+    if buySig
+        strategy.close("S")
+        if dayDir == 1
+            strategy.entry("L", strategy.long)
+    if sellSig
+        strategy.close("L")
+        if dayDir == -1
+            strategy.entry("S", strategy.short)
+else if mode == "Reversal"
     if buySig
         strategy.entry("L", strategy.long)
     if sellSig

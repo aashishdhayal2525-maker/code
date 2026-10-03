@@ -15,11 +15,13 @@ import pandas as pd
 from swastika.backtest import CONTRACTS, Costs, run, stats
 from swastika.data import load_minutes, resample
 from swastika.indicator import Params, compute, mtf_directions
+from research.real_signals import REAL
 
 OUT = Path("results")
 TABLE_FRAMES = {"3m": 3, "5m": 5, "15m": 15, "30m": 30, "75m": 75, "Day": None}
 STRATEGIES = {
     "reversal": "Buy/Sell labels, always in market (flip on every label)",
+    "day_filter": "Buy/Sell labels, only in the direction of the table's Day row (flat otherwise)",
     "ema_filter": "Buy/Sell labels, only with the 200 EMA (flat otherwise)",
     "magical": "Magical Buy/Sell entries, exit on the opposite Buy/Sell label",
     "mtf_filter": "Buy/Sell labels, only when every table row agrees",
@@ -38,7 +40,7 @@ def bench(bars, contract):
     return round((bars["close"].iloc[-1] - bars["open"].iloc[0]) * contract.multiplier)
 
 
-def plot_chart(bars, symbol, start, end, path):
+def plot_chart(bars, symbol, start, end, path, real=None):
     b = bars.loc[start:end]
     x = np.arange(len(b))
     fig, ax = plt.subplots(figsize=(15, 7))
@@ -67,6 +69,15 @@ def plot_chart(bars, symbol, start, end, path):
         if r.magic_sell:
             ax.annotate("Magical SELL", (i, r.high), xytext=(0, 40), textcoords="offset points",
                         ha="center", color="white", bbox=dict(fc="#00acc1", ec="none"))
+    if real is not None:
+        for t, side in real.itertuples(index=False):
+            i = b.index.searchsorted(t)
+            if 0 <= i < len(b):
+                y = b["low"].iloc[i] * 0.985 if side == "buy" else b["high"].iloc[i] * 1.015
+                ax.scatter(i, y, marker="^" if side == "buy" else "v", s=160, color="#ffeb3b",
+                           edgecolor="black", zorder=5)
+        ax.scatter([], [], marker="v", color="#ffeb3b", label="real Swastika signal (from screenshot)")
+        ax.legend(loc="upper left", facecolor="#222", labelcolor="#eee")
     ticks = np.linspace(0, len(b) - 1, 10).astype(int)
     ax.set_xticks(ticks, [b.index[t].strftime("%d %b") for t in ticks], color="#ccc")
     ax.tick_params(colors="#ccc"); ax.yaxis.tick_right()
@@ -80,7 +91,8 @@ def main():
     for symbol, contract in CONTRACTS.items():
         m, bars, mtf = build(symbol)
         bars.join(mtf.add_prefix("tbl_")).to_csv(OUT / f"{symbol}_1h_signals.csv")
-        plot_chart(bars, symbol, "2026-08-20", "2026-09-30", OUT / f"{symbol}_chart_recent.png")
+        real = REAL if symbol == "SILVER" else None
+        plot_chart(bars, symbol, "2026-07-13", "2026-09-30", OUT / f"{symbol}_chart_recent.png", real)
         for strat in STRATEGIES:
             t = run(bars, strat, contract, mtf=mtf)
             t.to_csv(OUT / f"trades_{symbol}_{strat}.csv", index=False)
@@ -112,11 +124,11 @@ def main():
             b = compute(resample(m, tf))
             for strat in ("reversal", "magical"):
                 s = stats(run(b, strat, contract), contract)
-                sens.append({"symbol": symbol, "tf_min": tf, "atr": 10, "mult": 3.0,
+                sens.append({"symbol": symbol, "tf_min": tf, "atr": 20, "mult": 6.0,
                              "strategy": strat, **s})
         b60 = resample(m, 60)
-        for atr_len in (10, 14, 20):
-            for mult in (2.0, 2.5, 3.0, 3.5, 4.0):
+        for atr_len in (10, 14, 20, 30):
+            for mult in (3.0, 4.0, 5.0, 6.0, 7.0, 8.0):
                 p = replace(Params(), st_atr_len=atr_len, st_slow_mult=mult,
                             st_fast_mult=mult - 1)
                 b = compute(b60, p)

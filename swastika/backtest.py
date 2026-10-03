@@ -34,6 +34,7 @@ class Costs:
 
 
 def _entries_exits(df: pd.DataFrame, strategy: str, mtf=None):
+    # mtf: table rows (DataFrame), one column per timeframe incl. "Day".
     """Return arrays: desired position after each bar's close (+1/-1/0)."""
     n = len(df)
     want = np.zeros(n, dtype=int)
@@ -63,6 +64,12 @@ def _entries_exits(df: pd.DataFrame, strategy: str, mtf=None):
                 pos = -1
             elif (pos == 1 and sell[i]) or (pos == -1 and buy[i]):
                 pos = 0
+        elif strategy == "day_filter":
+            day = mtf["Day"].to_numpy()
+            if buy[i]:
+                pos = 1 if day[i] == 1 else 0
+            elif sell[i]:
+                pos = -1 if day[i] == -1 else 0
         elif strategy == "mtf_filter":
             if buy[i]:
                 pos = 1 if agree_up[i] else 0

@@ -3,7 +3,7 @@
 The original is a closed, invite-only TradingView script, so this is a
 reconstruction from how it draws on the chart, not its actual source:
 
-  band     two SuperTrend lines (fast = inner/blue, slow = outer/red) with
+  band     two SuperTrend lines (inner/blue x5, outer/red x6, ATR 20) with
            the gap between them filled green (uptrend) or red (downtrend).
            Buy / Sell prints when the slow line flips.
   cyan     a smoother, wider ATR trailing stop (UT-Bot style), drawn
@@ -11,6 +11,9 @@ reconstruction from how it draws on the chart, not its actual source:
   magenta  long EMA (200) as the higher-level trend filter.
   magical  first bar in each band trend where all three agree:
            band + cyan + EMA200. At most one per Buy/Sell leg.
+           UNVERIFIED: the real Magical label is much rarer (none on 9
+           consecutive legs in Jul-Sep 2026) and no cyan setting tested
+           reproduces it. Treat this one as a guess.
   table    the band direction on other timeframes (see mtf_directions).
 
 All functions follow TradingView's definitions (RMA-based ATR,
@@ -24,9 +27,12 @@ import pandas as pd
 
 @dataclass
 class Params:
-    st_atr_len: int = 10
-    st_fast_mult: float = 2.0
-    st_slow_mult: float = 3.0
+    # Calibrated to the real indicator: with these, all 9 Buy/Sell labels on
+    # the user's SILVER1! 1h screenshot (21 Jul - 17 Sep 2026) are matched
+    # within ~2 bars and no extra labels appear. See research/calibrate.py.
+    st_atr_len: int = 20
+    st_fast_mult: float = 5.0
+    st_slow_mult: float = 6.0
     cyan_atr_len: int = 14
     cyan_mult: float = 5.0
     cyan_smooth: int = 5
