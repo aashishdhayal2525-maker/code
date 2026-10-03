@@ -22,12 +22,19 @@ class Rules:
     stop_atr: float | None = None    # initial stop at entry -/+ k * ATR(signal bar); None = band only
     exit_on_flip: bool = True        # close on the opposite Buy/Sell label
     take_profit_r: float | None = None   # scale out at +k R
-    take_profit_frac: float = 0.5        # ...this fraction of the position
-    breakeven_r: float | None = None     # after +k R move the stop to entry
+    take_profit_frac: float = 0.5        # ...this fraction of the position (1.0 = full exit)
+    breakeven_r: float | None = None     # after +k R move the stop to entry + lock_r * R
+    lock_r: float = 0.0
     trail_band: bool = False         # stop follows the outer band line each hour
+    exit_fast: bool = False          # exit when the inner (x5) line flips against the trade
     day_filter: bool = False         # only trade with the Day table row
+    require: tuple = ()              # extra timeframe rows that must agree, e.g. ("75m",)
+    ema_filter: bool = False         # only trade on the 200 EMA's side
     adx_min: float | None = None     # skip entries when ADX(14) is below this
     long_only: bool = False
+    confirm_bars: int = 0            # wait k bars; enter only if the band held and price followed through
+    pullback_atr: float | None = None    # instead of buying the open, wait for a dip of k * ATR...
+    pullback_bars: int = 10              # ...for at most this many bars, else skip the signal
 
 
 @dataclass
@@ -52,7 +59,9 @@ def adx(h, l, c, n=14):
 
 
 def simulate(minutes: pd.DataFrame, bars: pd.DataFrame, rules: Rules, contract: Contract,
-             costs: Costs = Costs(), sizing: Sizing = Sizing(), day_dir=None, atr_bars=None):
+             costs: Costs = Costs(), sizing: Sizing = Sizing(), day_dir=None, atr_bars=None,
+             rows: dict | None = None):
+    """rows: extra timeframe directions aligned to bars, e.g. {"75m": array}."""
     from .indicator import atr as atr_fn
     h, l, c = (bars[k].to_numpy(float) for k in ("high", "low", "close"))
     a = atr_bars if atr_bars is not None else atr_fn(h, l, c, 14)
@@ -60,7 +69,10 @@ def simulate(minutes: pd.DataFrame, bars: pd.DataFrame, rules: Rules, contract: 
     buy, sell = bars["buy"].to_numpy(), bars["sell"].to_numpy()
     band = bars["st_slow"].to_numpy(float)
     band_dir = bars["band_dir"].to_numpy()
+    fast_dir = bars["dir_fast"].to_numpy()
+    ema_dir = bars["ema_dir"].to_numpy()
     raw = bars["raw_close"].to_numpy(float)
+    rows = rows or {}
 
     # Map each minute to the 1h bar it belongs to.
     bar_of = np.searchsorted(bars.index.to_numpy(), minutes.index.to_numpy(), side="right") - 1
@@ -68,110 +80,125 @@ def simulate(minutes: pd.DataFrame, bars: pd.DataFrame, rules: Rules, contract: 
     mroll = minutes["roll"].to_numpy(bool)
     mt = minutes.index
     slip = costs.slip_ticks * contract.tick
+    mult_unit = contract.multiplier if sizing.mode == "lot" else sizing.unit_mult
 
     trades = []
-    pos = 0              # +1 / -1
-    qty = 0.0            # units held (lots for "lot" sizing, units for "risk")
-    open_qty = 0.0
-    entry = stop = tp = r_pts = 0.0
-    realized = 0.0       # points * qty already banked from scale-outs
-    cost_pts = 0.0
-    entry_t = None
-    rolls = 0
-    tp_done = be_done = False
+    st = dict(pos=0, qty=0.0, open_qty=0.0, entry=0.0, stop=0.0, tp=None, r_pts=0.0,
+              realized=0.0, cost_pts=0.0, entry_t=None, rolls=0, tp_done=False, be_done=False)
+    pend = None  # waiting entry: dict(side, sig, due, limit, expiry)
 
-    def bank(px, q, t, reason):
-        nonlocal realized, cost_pts, open_qty
-        realized += pos * (px - entry) * q
-        cost_pts += q * (costs.cost_pct * raw[bar_of_i] + 2 * slip) / 2  # exit half of round trip
-        open_qty -= q
-        if open_qty <= 1e-9:
-            finish(t, reason)
-
-    def finish(t, reason):
-        nonlocal pos
-        total_cost = cost_pts + rolls * qty * (costs.cost_pct * raw[bar_of_i] + 2 * slip)
-        net_pts = realized - total_cost
+    def finish(t, reason, k):
+        total_cost = st["cost_pts"] + st["rolls"] * st["qty"] * (costs.cost_pct * raw[k] + 2 * slip)
+        net_pts = st["realized"] - total_cost
         trades.append({
-            "side": "LONG" if pos == 1 else "SHORT", "entry_time": entry_t, "exit_time": t,
-            "entry": entry, "qty": qty, "risk_pts": r_pts, "reason": reason,
-            "gross_inr": realized * mult_unit, "net_inr": net_pts * mult_unit,
-            "r_multiple": net_pts / (r_pts * qty) if r_pts > 0 else np.nan,
+            "side": "LONG" if st["pos"] == 1 else "SHORT", "entry_time": st["entry_t"], "exit_time": t,
+            "entry": st["entry"], "qty": st["qty"], "risk_pts": st["r_pts"], "reason": reason,
+            "gross_inr": st["realized"] * mult_unit, "net_inr": net_pts * mult_unit,
+            "r_multiple": net_pts / (st["r_pts"] * st["qty"]) if st["r_pts"] > 0 else np.nan,
         })
-        pos = 0
+        st["pos"] = 0
 
-    mult_unit = contract.multiplier if sizing.mode == "lot" else sizing.unit_mult
+    def bank(px, q, t, reason, k):
+        st["realized"] += st["pos"] * (px - st["entry"]) * q
+        st["cost_pts"] += q * (costs.cost_pct * raw[k] + 2 * slip) / 2  # exit half of round trip
+        st["open_qty"] -= q
+        if st["open_qty"] <= 1e-9:
+            finish(t, reason, k)
+
+    def allowed(side, k):
+        if rules.long_only and side == -1:
+            return False
+        if rules.day_filter and day_dir is not None and day_dir[k] != side:
+            return False
+        if any(rows[name][k] != side for name in rules.require):
+            return False
+        if rules.ema_filter and ema_dir[k] != side:
+            return False
+        if rules.adx_min and not (adx_v[k] >= rules.adx_min):
+            return False
+        return not np.isnan(a[k])
+
+    def enter(px, side, k, t):
+        stop = px - side * rules.stop_atr * a[k] if rules.stop_atr else band[k]
+        r_pts = abs(px - stop)
+        if r_pts <= 0 or (side == 1 and stop >= px) or (side == -1 and stop <= px):
+            return
+        if sizing.mode == "lot":
+            q = 1.0
+        else:
+            q = float(min(sizing.max_units, np.floor(sizing.risk_inr / (r_pts * sizing.unit_mult))))
+        if q < 1:
+            return
+        st.update(pos=side, qty=q, open_qty=q, entry=px, stop=stop, r_pts=r_pts,
+                  tp=px + side * rules.take_profit_r * r_pts if rules.take_profit_r else None,
+                  realized=0.0, rolls=0, entry_t=t, tp_done=False, be_done=False,
+                  cost_pts=q * (costs.cost_pct * raw[k] + 2 * slip) / 2)
+
     prev_bar = -1
-    bar_of_i = 0
     for i in range(len(mt)):
         j = bar_of[i]
-        bar_of_i = j
-        if pos != 0 and mroll[i]:
-            rolls += 1
+        if st["pos"] != 0 and mroll[i]:
+            st["rolls"] += 1
         new_bar = j != prev_bar
         prev_bar = j
         if new_bar and j >= 1:
             s = j - 1  # last finished bar
-            # 1) exit on opposite label
+            pos = st["pos"]
             if pos != 0 and rules.exit_on_flip and ((pos == 1 and sell[s]) or (pos == -1 and buy[s])):
-                bank(mo[i], open_qty, mt[i], "flip")
-            # 2) trail stop with the band
-            if pos != 0 and rules.trail_band and band_dir[s] == pos:
-                stop = max(stop, band[s]) if pos == 1 else min(stop, band[s])
-            # 3) new entry
-            if pos == 0 and (buy[s] or sell[s]):
+                bank(mo[i], st["open_qty"], mt[i], "flip", s)
+            elif pos != 0 and rules.exit_fast and fast_dir[s] == -pos:
+                bank(mo[i], st["open_qty"], mt[i], "inner line", s)
+            if st["pos"] != 0 and rules.trail_band and band_dir[s] == st["pos"]:
+                st["stop"] = max(st["stop"], band[s]) if st["pos"] == 1 else min(st["stop"], band[s])
+            # Cancel a waiting entry once the band turns against it.
+            if pend is not None and band_dir[s] != pend["side"]:
+                pend = None
+            if st["pos"] == 0 and (buy[s] or sell[s]):
                 side = 1 if buy[s] else -1
-                ok = True
-                if rules.long_only and side == -1:
-                    ok = False
-                if rules.day_filter and day_dir is not None and day_dir[s] != side:
-                    ok = False
-                if rules.adx_min and not (adx_v[s] >= rules.adx_min):
-                    ok = False
-                if ok and not np.isnan(a[s]):
-                    entry = mo[i]
-                    band_stop = band[s]
-                    if rules.stop_atr:
-                        stop = entry - side * rules.stop_atr * a[s]
-                    else:
-                        stop = band_stop
-                    r_pts = abs(entry - stop)
-                    if sizing.mode == "lot":
-                        q = 1.0
-                    else:
-                        q = float(min(sizing.max_units, np.floor(sizing.risk_inr / (r_pts * sizing.unit_mult))))
-                    if q >= 1 and r_pts > 0:
-                        pos, qty, open_qty = side, q, q
-                        tp = entry + side * rules.take_profit_r * r_pts if rules.take_profit_r else None
-                        realized, rolls, entry_t = 0.0, 0, mt[i]
-                        cost_pts = q * (costs.cost_pct * raw[s] + 2 * slip) / 2  # entry half
-                        tp_done = be_done = False
-        if pos == 0:
+                if allowed(side, s):
+                    pend = dict(side=side, sig=s, due=s + rules.confirm_bars,
+                                limit=(c[s] - side * rules.pullback_atr * a[s]) if rules.pullback_atr else None,
+                                expiry=s + rules.pullback_bars)
+            if pend is not None and st["pos"] == 0 and pend["limit"] is None and s >= pend["due"]:
+                follow = rules.confirm_bars == 0 or (c[s] - c[pend["sig"]]) * pend["side"] > 0
+                if follow:
+                    enter(mo[i], pend["side"], s, mt[i])
+                pend = None
+            if pend is not None and pend["limit"] is not None and s > pend["expiry"]:
+                pend = None
+        # Pullback limit order, filled intrabar.
+        if pend is not None and st["pos"] == 0 and pend["limit"] is not None:
+            lim, side = pend["limit"], pend["side"]
+            if (side == 1 and ml[i] <= lim) or (side == -1 and mh[i] >= lim):
+                px = min(mo[i], lim) if side == 1 else max(mo[i], lim)
+                enter(px, side, j - 1, mt[i])
+                pend = None
+        if st["pos"] == 0:
             continue
+        pos, entry, r_pts = st["pos"], st["entry"], st["r_pts"]
         # Intrabar checks. The band-only stop (no stop_atr, no trail) is not a
         # resting order: that strategy exits only on the closing flip.
-        has_stop = rules.stop_atr is not None or rules.trail_band or be_done
-        if has_stop:
-            hit = (ml[i] <= stop) if pos == 1 else (mh[i] >= stop)
-            if hit:
+        if rules.stop_atr is not None or rules.trail_band or st["be_done"]:
+            stop = st["stop"]
+            if (ml[i] <= stop) if pos == 1 else (mh[i] >= stop):
                 px = min(mo[i], stop) if pos == 1 else max(mo[i], stop)
-                bank(px, open_qty, mt[i], "stop")
+                bank(px, st["open_qty"], mt[i], "stop", j)
                 continue
-        if tp is not None and not tp_done:
-            hit = (mh[i] >= tp) if pos == 1 else (ml[i] <= tp)
-            if hit:
-                q = qty * rules.take_profit_frac
-                tp_done = True
-                bank(tp, q, mt[i], "target")
-                if pos == 0:
+        if st["tp"] is not None and not st["tp_done"]:
+            tp = st["tp"]
+            if (mh[i] >= tp) if pos == 1 else (ml[i] <= tp):
+                st["tp_done"] = True
+                bank(tp, min(st["open_qty"], st["qty"] * rules.take_profit_frac), mt[i], "target", j)
+                if st["pos"] == 0:
                     continue
-        if rules.breakeven_r and not be_done:
+        if rules.breakeven_r and not st["be_done"]:
             fav = (mh[i] - entry) if pos == 1 else (entry - ml[i])
             if fav >= rules.breakeven_r * r_pts:
-                stop = max(stop, entry) if pos == 1 else min(stop, entry)
-                be_done = True
-    if pos != 0:
-        bank(minutes["close"].iloc[-1], open_qty, mt[-1], "end")
+                lock = entry + pos * rules.lock_r * r_pts
+                st["stop"] = max(st["stop"], lock) if pos == 1 else min(st["stop"], lock)
+                st["be_done"] = True
+    if st["pos"] != 0:
+        bank(minutes["close"].iloc[-1], st["open_qty"], mt[-1], "end", len(bars) - 1)
     return pd.DataFrame(trades)
 
 

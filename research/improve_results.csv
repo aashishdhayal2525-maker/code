@@ -1,39 +1,39 @@
 symbol,variant,sizing,period,trades,win_%,net_inr,pf,max_dd_inr,net_R,avg_R,max_dd_R,worst_streak
-SILVER,"V0 real Buy/Sell, always in",1 lot,ALL,69,47.8,6378511,1.91,-1535186,19.1,0.28,-3.5,5
-SILVER,"V0 real Buy/Sell, always in",1 lot,2025,38,44.7,1718496,1.82,-448701,12.7,0.34,-3.5,5
-SILVER,"V0 real Buy/Sell, always in",1 lot,2026,31,51.6,4660015,1.94,-1535186,6.4,0.21,-2.9,3
-SILVER,"V0 real Buy/Sell, always in",risk Rs20k,ALL,62,48.4,332799,1.97,-62185,20.4,0.33,-3.5,5
-SILVER,"V0 real Buy/Sell, always in",risk Rs20k,2025,37,45.9,228730,2.05,-62185,13.3,0.36,-3.5,5
-SILVER,"V0 real Buy/Sell, always in",risk Rs20k,2026,25,52.0,104069,1.83,-30442,7.1,0.28,-1.8,3
-SILVER,V1 + Day-row filter,1 lot,ALL,32,59.4,5793356,4.24,-905026,22.4,0.7,-2.4,3
-SILVER,V1 + Day-row filter,1 lot,2025,17,58.8,2697725,8.1,-207465,16.4,0.97,-2.4,3
-SILVER,V1 + Day-row filter,1 lot,2026,15,60.0,3095631,3.2,-905026,5.9,0.4,-2.1,3
-SILVER,V1 + Day-row filter,risk Rs20k,ALL,29,58.6,384805,3.8,-42872,23.0,0.79,-2.4,3
-SILVER,V1 + Day-row filter,risk Rs20k,2025,17,58.8,279178,4.44,-42872,16.4,0.97,-2.4,3
-SILVER,V1 + Day-row filter,risk Rs20k,2026,12,58.3,105627,2.88,-23070,6.5,0.54,-1.4,2
-SILVER,V2 + 3xATR stop,1 lot,ALL,69,43.5,3940875,1.68,-1255306,46.3,0.67,-4.9,5
-SILVER,V2 + 3xATR stop,1 lot,2025,38,39.5,1966453,2.26,-402738,33.0,0.87,-4.2,5
-SILVER,V2 + 3xATR stop,1 lot,2026,31,48.4,1974422,1.47,-1255306,13.3,0.43,-4.9,3
-SILVER,V2 + 3xATR stop,risk Rs20k,ALL,68,44.1,849926,2.33,-86197,47.3,0.7,-4.9,5
-SILVER,V2 + 3xATR stop,risk Rs20k,2025,38,39.5,619867,2.66,-80995,33.0,0.87,-4.2,5
-SILVER,V2 + 3xATR stop,risk Rs20k,2026,30,50.0,230059,1.86,-86197,14.3,0.48,-4.9,3
+SILVER,"V0 real Buy/Sell, always in",1 lot,ALL,69,47.8,6378578,1.91,-1535198,19.1,0.28,-3.5,5
+SILVER,"V0 real Buy/Sell, always in",1 lot,2025,38,44.7,1718460,1.82,-448735,12.7,0.34,-3.5,5
+SILVER,"V0 real Buy/Sell, always in",1 lot,2026,31,51.6,4660118,1.94,-1535198,6.4,0.21,-2.9,3
+SILVER,"V0 real Buy/Sell, always in",risk Rs20k,ALL,62,48.4,332801,1.97,-62185,20.4,0.33,-3.5,5
+SILVER,"V0 real Buy/Sell, always in",risk Rs20k,2025,37,45.9,228731,2.05,-62185,13.3,0.36,-3.5,5
+SILVER,"V0 real Buy/Sell, always in",risk Rs20k,2026,25,52.0,104070,1.83,-30441,7.1,0.28,-1.8,3
+SILVER,V1 + Day-row filter,1 lot,ALL,32,59.4,5793476,4.24,-905014,22.4,0.7,-2.4,3
+SILVER,V1 + Day-row filter,1 lot,2025,17,58.8,2697719,8.1,-207464,16.4,0.97,-2.4,3
+SILVER,V1 + Day-row filter,1 lot,2026,15,60.0,3095757,3.2,-905014,5.9,0.4,-2.1,3
+SILVER,V1 + Day-row filter,risk Rs20k,ALL,29,58.6,384808,3.8,-42872,23.0,0.79,-2.4,3
+SILVER,V1 + Day-row filter,risk Rs20k,2025,17,58.8,279179,4.44,-42872,16.4,0.97,-2.4,3
+SILVER,V1 + Day-row filter,risk Rs20k,2026,12,58.3,105629,2.88,-23070,6.5,0.54,-1.4,2
+SILVER,V2 + 3xATR stop,1 lot,ALL,69,43.5,3940965,1.68,-1255310,46.3,0.67,-4.9,5
+SILVER,V2 + 3xATR stop,1 lot,2025,38,39.5,1966452,2.26,-402738,33.0,0.87,-4.2,5
+SILVER,V2 + 3xATR stop,1 lot,2026,31,48.4,1974513,1.47,-1255310,13.3,0.43,-4.9,3
+SILVER,V2 + 3xATR stop,risk Rs20k,ALL,68,44.1,849930,2.33,-86198,47.3,0.7,-4.9,5
+SILVER,V2 + 3xATR stop,risk Rs20k,2025,38,39.5,619868,2.66,-80994,33.0,0.87,-4.2,5
+SILVER,V2 + 3xATR stop,risk Rs20k,2026,30,50.0,230062,1.86,-86198,14.3,0.48,-4.9,3
 SILVER,V3 + band trailing stop (intrabar),1 lot,ALL,69,46.4,8199882,2.29,-1166648,22.3,0.32,-3.2,5
 SILVER,V3 + band trailing stop (intrabar),1 lot,2025,38,39.5,1536226,1.68,-691412,13.2,0.35,-3.2,5
 SILVER,V3 + band trailing stop (intrabar),1 lot,2026,31,54.8,6663656,2.63,-1166648,9.1,0.29,-2.6,3
 SILVER,V3 + band trailing stop (intrabar),risk Rs20k,ALL,62,46.8,372214,2.18,-56134,22.6,0.36,-3.2,5
 SILVER,V3 + band trailing stop (intrabar),risk Rs20k,2025,37,40.5,241739,2.2,-56134,14.0,0.38,-3.2,5
 SILVER,V3 + band trailing stop (intrabar),risk Rs20k,2026,25,56.0,130476,2.13,-30215,8.6,0.34,-1.8,3
-SILVER,V4 + ADX>20,1 lot,ALL,56,41.1,2698264,1.41,-2689393,3.2,0.06,-5.5,8
-SILVER,V4 + ADX>20,1 lot,2025,30,33.3,61100,1.03,-841930,2.1,0.07,-5.5,8
-SILVER,V4 + ADX>20,1 lot,2026,26,50.0,2637164,1.58,-1889330,1.1,0.04,-2.4,3
-SILVER,V4 + ADX>20,risk Rs20k,ALL,50,40.0,50945,1.16,-99391,4.1,0.08,-5.5,8
-SILVER,V4 + ADX>20,risk Rs20k,2025,29,34.5,38608,1.19,-99391,2.6,0.09,-5.5,8
-SILVER,V4 + ADX>20,risk Rs20k,2026,21,47.6,12337,1.1,-35034,1.5,0.07,-2.0,3
-SILVER,"V5 + 50% off at 1.5R, then breakeven",1 lot,ALL,69,53.6,2748340,1.5,-1064203,35.1,0.51,-4.3,3
-SILVER,"V5 + 50% off at 1.5R, then breakeven",1 lot,2025,38,55.3,1196502,1.85,-402738,24.1,0.63,-2.7,3
-SILVER,"V5 + 50% off at 1.5R, then breakeven",1 lot,2026,31,51.6,1551838,1.38,-1064203,11.1,0.36,-4.3,3
-SILVER,"V5 + 50% off at 1.5R, then breakeven",risk Rs20k,ALL,68,54.4,645653,2.16,-73457,36.1,0.53,-4.3,3
-SILVER,"V5 + 50% off at 1.5R, then breakeven",risk Rs20k,2025,38,55.3,454813,2.47,-51810,24.1,0.63,-2.7,3
+SILVER,V4 + ADX>20,1 lot,ALL,56,41.1,2698345,1.41,-2689436,3.2,0.06,-5.5,8
+SILVER,V4 + ADX>20,1 lot,2025,30,33.3,61081,1.03,-841962,2.1,0.07,-5.5,8
+SILVER,V4 + ADX>20,1 lot,2026,26,50.0,2637264,1.58,-1889340,1.1,0.04,-2.4,3
+SILVER,V4 + ADX>20,risk Rs20k,ALL,50,40.0,50948,1.16,-99389,4.1,0.08,-5.5,8
+SILVER,V4 + ADX>20,risk Rs20k,2025,29,34.5,38610,1.19,-99389,2.6,0.09,-5.5,8
+SILVER,V4 + ADX>20,risk Rs20k,2026,21,47.6,12338,1.1,-35034,1.5,0.07,-2.0,3
+SILVER,"V5 + 50% off at 1.5R, then breakeven",1 lot,ALL,69,53.6,2748340,1.5,-1064205,35.1,0.51,-4.3,3
+SILVER,"V5 + 50% off at 1.5R, then breakeven",1 lot,2025,38,55.3,1196505,1.85,-402738,24.1,0.63,-2.7,3
+SILVER,"V5 + 50% off at 1.5R, then breakeven",1 lot,2026,31,51.6,1551834,1.38,-1064205,11.1,0.36,-4.3,3
+SILVER,"V5 + 50% off at 1.5R, then breakeven",risk Rs20k,ALL,68,54.4,645654,2.16,-73457,36.1,0.53,-4.3,3
+SILVER,"V5 + 50% off at 1.5R, then breakeven",risk Rs20k,2025,38,55.3,454814,2.47,-51810,24.1,0.63,-2.7,3
 SILVER,"V5 + 50% off at 1.5R, then breakeven",risk Rs20k,2026,30,53.3,190840,1.77,-73457,12.1,0.4,-4.3,3
 SILVER,C1 Day + 3xATR + 50%@1.5R/BE + trail,1 lot,ALL,32,59.4,5138091,4.79,-652954,34.9,1.09,-3.0,3
 SILVER,C1 Day + 3xATR + 50%@1.5R/BE + trail,1 lot,2025,17,58.8,1553847,5.55,-116521,22.6,1.33,-2.5,3
@@ -47,42 +47,42 @@ SILVER,C2 3xATR + 50%@1.5R/BE + trail,1 lot,2026,31,51.6,2269291,1.56,-1022192,1
 SILVER,C2 3xATR + 50%@1.5R/BE + trail,risk Rs20k,ALL,68,54.4,708427,2.29,-70656,39.7,0.58,-4.1,3
 SILVER,C2 3xATR + 50%@1.5R/BE + trail,risk Rs20k,2025,38,55.3,484819,2.59,-51810,25.7,0.68,-2.7,3
 SILVER,C2 3xATR + 50%@1.5R/BE + trail,risk Rs20k,2026,30,53.3,223608,1.91,-70656,14.0,0.47,-4.1,3
-GOLD,"V0 real Buy/Sell, always in",1 lot,ALL,59,52.5,9564661,2.77,-1112559,33.5,0.57,-3.4,4
-GOLD,"V0 real Buy/Sell, always in",1 lot,2025,35,51.4,4038927,3.17,-502209,19.1,0.55,-3.4,4
-GOLD,"V0 real Buy/Sell, always in",1 lot,2026,24,54.2,5525734,2.56,-1112559,14.4,0.6,-2.5,3
-GOLD,"V0 real Buy/Sell, always in",risk Rs20k,ALL,58,51.7,624260,3.11,-63538,33.0,0.57,-3.4,4
-GOLD,"V0 real Buy/Sell, always in",risk Rs20k,2025,35,51.4,368432,2.93,-63538,19.1,0.55,-3.4,4
-GOLD,"V0 real Buy/Sell, always in",risk Rs20k,2026,23,52.2,255828,3.42,-44502,13.9,0.6,-2.5,3
-GOLD,V1 + Day-row filter,1 lot,ALL,28,64.3,7134136,4.99,-770973,27.1,0.97,-1.8,3
-GOLD,V1 + Day-row filter,1 lot,2025,17,70.6,4042579,10.85,-192498,19.0,1.12,-0.9,3
-GOLD,V1 + Day-row filter,1 lot,2026,11,54.5,3091556,3.25,-770973,8.1,0.73,-1.8,3
-GOLD,V1 + Day-row filter,risk Rs20k,ALL,28,64.3,511958,6.77,-31108,27.1,0.97,-1.8,3
-GOLD,V1 + Day-row filter,risk Rs20k,2025,17,70.6,363981,9.15,-17768,19.0,1.12,-0.9,3
-GOLD,V1 + Day-row filter,risk Rs20k,2026,11,54.5,147978,4.35,-31108,8.1,0.73,-1.8,3
-GOLD,V2 + 3xATR stop,1 lot,ALL,59,40.7,3615515,1.59,-2046166,42.0,0.71,-5.3,4
-GOLD,V2 + 3xATR stop,1 lot,2025,35,48.6,4219526,3.77,-364817,44.4,1.27,-5.3,4
-GOLD,V2 + 3xATR stop,1 lot,2026,24,29.2,-604011,0.87,-2046166,-2.4,-0.1,-5.1,4
-GOLD,V2 + 3xATR stop,risk Rs20k,ALL,59,40.7,827769,2.32,-103467,42.0,0.71,-5.3,4
-GOLD,V2 + 3xATR stop,risk Rs20k,2025,35,48.6,867992,3.69,-103467,44.4,1.27,-5.3,4
-GOLD,V2 + 3xATR stop,risk Rs20k,2026,24,29.2,-40223,0.87,-90094,-2.4,-0.1,-5.1,4
+GOLD,"V0 real Buy/Sell, always in",1 lot,ALL,59,52.5,9564693,2.77,-1112560,33.5,0.57,-3.4,4
+GOLD,"V0 real Buy/Sell, always in",1 lot,2025,35,51.4,4038831,3.17,-502228,19.1,0.55,-3.4,4
+GOLD,"V0 real Buy/Sell, always in",1 lot,2026,24,54.2,5525862,2.56,-1112560,14.4,0.6,-2.5,3
+GOLD,"V0 real Buy/Sell, always in",risk Rs20k,ALL,58,51.7,624252,3.11,-63540,33.0,0.57,-3.4,4
+GOLD,"V0 real Buy/Sell, always in",risk Rs20k,2025,35,51.4,368425,2.93,-63540,19.1,0.55,-3.4,4
+GOLD,"V0 real Buy/Sell, always in",risk Rs20k,2026,23,52.2,255827,3.42,-44502,13.9,0.6,-2.5,3
+GOLD,V1 + Day-row filter,1 lot,ALL,28,64.3,7134101,4.99,-770979,27.1,0.97,-1.8,3
+GOLD,V1 + Day-row filter,1 lot,2025,17,70.6,4042473,10.85,-192499,19.0,1.12,-0.9,3
+GOLD,V1 + Day-row filter,1 lot,2026,11,54.5,3091628,3.25,-770979,8.1,0.73,-1.8,3
+GOLD,V1 + Day-row filter,risk Rs20k,ALL,28,64.3,511952,6.77,-31108,27.1,0.97,-1.8,3
+GOLD,V1 + Day-row filter,risk Rs20k,2025,17,70.6,363973,9.15,-17768,19.0,1.12,-0.9,3
+GOLD,V1 + Day-row filter,risk Rs20k,2026,11,54.5,147979,4.35,-31108,8.1,0.73,-1.8,3
+GOLD,V2 + 3xATR stop,1 lot,ALL,59,40.7,3615596,1.59,-2046087,42.0,0.71,-5.3,4
+GOLD,V2 + 3xATR stop,1 lot,2025,35,48.6,4219433,3.77,-364837,44.4,1.27,-5.3,4
+GOLD,V2 + 3xATR stop,1 lot,2026,24,29.2,-603837,0.87,-2046087,-2.4,-0.1,-5.1,4
+GOLD,V2 + 3xATR stop,risk Rs20k,ALL,59,40.7,827759,2.32,-103471,42.0,0.71,-5.3,4
+GOLD,V2 + 3xATR stop,risk Rs20k,2025,35,48.6,867977,3.69,-103471,44.4,1.27,-5.3,4
+GOLD,V2 + 3xATR stop,risk Rs20k,2026,24,29.2,-40218,0.87,-90088,-2.4,-0.1,-5.1,4
 GOLD,V3 + band trailing stop (intrabar),1 lot,ALL,59,54.2,7366493,2.43,-1359553,20.7,0.35,-2.6,4
 GOLD,V3 + band trailing stop (intrabar),1 lot,2025,35,54.3,3056165,2.88,-350738,12.3,0.35,-2.6,4
 GOLD,V3 + band trailing stop (intrabar),1 lot,2026,24,54.2,4310328,2.22,-1359553,8.4,0.35,-2.3,3
 GOLD,V3 + band trailing stop (intrabar),risk Rs20k,ALL,58,53.4,379420,2.37,-49963,20.2,0.35,-2.6,4
 GOLD,V3 + band trailing stop (intrabar),risk Rs20k,2025,35,54.3,229780,2.36,-49963,12.3,0.35,-2.6,4
 GOLD,V3 + band trailing stop (intrabar),risk Rs20k,2026,23,52.2,149641,2.38,-40118,8.0,0.35,-2.3,3
-GOLD,V4 + ADX>20,1 lot,ALL,46,54.3,7489916,2.49,-1112559,25.5,0.55,-2.5,3
-GOLD,V4 + ADX>20,1 lot,2025,25,56.0,2639068,2.75,-315844,12.6,0.5,-1.9,2
-GOLD,V4 + ADX>20,1 lot,2026,21,52.4,4850848,2.38,-1112559,12.8,0.61,-2.5,3
-GOLD,V4 + ADX>20,risk Rs20k,ALL,45,53.3,464781,2.88,-44502,25.0,0.56,-2.5,3
-GOLD,V4 + ADX>20,risk Rs20k,2025,25,56.0,237759,2.66,-37342,12.6,0.5,-1.9,2
-GOLD,V4 + ADX>20,risk Rs20k,2026,20,50.0,227022,3.18,-44502,12.4,0.62,-2.5,3
-GOLD,"V5 + 50% off at 1.5R, then breakeven",1 lot,ALL,59,52.5,2089944,1.36,-1809253,27.9,0.47,-5.9,4
-GOLD,"V5 + 50% off at 1.5R, then breakeven",1 lot,2025,35,65.7,3629639,4.1,-265239,33.5,0.96,-2.4,2
-GOLD,"V5 + 50% off at 1.5R, then breakeven",1 lot,2026,24,33.3,-1539695,0.66,-1809253,-5.5,-0.23,-5.9,4
-GOLD,"V5 + 50% off at 1.5R, then breakeven",risk Rs20k,ALL,59,52.5,554001,1.98,-106453,27.9,0.47,-5.9,4
-GOLD,"V5 + 50% off at 1.5R, then breakeven",risk Rs20k,2025,35,65.7,653231,3.5,-47839,33.5,0.96,-2.4,2
-GOLD,"V5 + 50% off at 1.5R, then breakeven",risk Rs20k,2026,24,33.3,-99230,0.67,-106453,-5.5,-0.23,-5.9,4
+GOLD,V4 + ADX>20,1 lot,ALL,46,54.3,7489914,2.49,-1112560,25.5,0.55,-2.5,3
+GOLD,V4 + ADX>20,1 lot,2025,25,56.0,2639048,2.75,-315844,12.6,0.5,-1.9,2
+GOLD,V4 + ADX>20,1 lot,2026,21,52.4,4850866,2.38,-1112560,12.8,0.61,-2.5,3
+GOLD,V4 + ADX>20,risk Rs20k,ALL,45,53.3,464778,2.88,-44502,25.0,0.56,-2.5,3
+GOLD,V4 + ADX>20,risk Rs20k,2025,25,56.0,237757,2.66,-37342,12.6,0.5,-1.9,2
+GOLD,V4 + ADX>20,risk Rs20k,2026,20,50.0,227021,3.18,-44502,12.4,0.62,-2.5,3
+GOLD,"V5 + 50% off at 1.5R, then breakeven",1 lot,ALL,59,52.5,2089989,1.36,-1809253,27.9,0.47,-5.9,4
+GOLD,"V5 + 50% off at 1.5R, then breakeven",1 lot,2025,35,65.7,3629579,4.1,-265239,33.5,0.96,-2.4,2
+GOLD,"V5 + 50% off at 1.5R, then breakeven",1 lot,2026,24,33.3,-1539590,0.66,-1809253,-5.5,-0.23,-5.9,4
+GOLD,"V5 + 50% off at 1.5R, then breakeven",risk Rs20k,ALL,59,52.5,553995,1.98,-106450,27.9,0.47,-5.9,4
+GOLD,"V5 + 50% off at 1.5R, then breakeven",risk Rs20k,2025,35,65.7,653222,3.5,-47839,33.5,0.96,-2.4,2
+GOLD,"V5 + 50% off at 1.5R, then breakeven",risk Rs20k,2026,24,33.3,-99227,0.67,-106450,-5.5,-0.23,-5.9,4
 GOLD,C1 Day + 3xATR + 50%@1.5R/BE + trail,1 lot,ALL,28,64.3,4220270,3.54,-662539,28.1,1.01,-2.4,2
 GOLD,C1 Day + 3xATR + 50%@1.5R/BE + trail,1 lot,2025,17,76.5,2505257,10.86,-76341,24.3,1.43,-1.1,1
 GOLD,C1 Day + 3xATR + 50%@1.5R/BE + trail,1 lot,2026,11,45.5,1715013,2.22,-662539,3.8,0.35,-2.4,2

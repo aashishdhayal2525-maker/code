@@ -13,6 +13,12 @@ cyanMult  = input.float(5.0, "Cyan ATR multiplier",    group="Cyan trail", step=
 cyanSm    = input.int(5,     "Cyan smoothing (EMA)",   group="Cyan trail")
 emaLen    = input.int(200,   "Trend EMA length",       group="Trend EMA")
 showTable = input.bool(true, "Show timeframe table",   group="Table")
+confirm1  = input.bool(false, "Wait 1 bar for follow-through", group="Filter",
+     tooltip="Marks the bar after a Day-confirmed signal with a check if the band held and price followed through. Backtest win rate ~90% but half the trades.")
+showLock  = input.bool(true, "Show profit-lock levels", group="Profit lock",
+     tooltip="After a Day-confirmed signal: grey line = +0.5R (move your stop when price reaches it), yellow line = the locked stop at +0.1R. R = entry to outer band.")
+lockTrig  = input.float(0.5, "Lock trigger (R)", step=0.1,  group="Profit lock")
+lockAt    = input.float(0.1, "Locked stop (R)",  step=0.05, group="Profit lock")
 dayOnly   = input.bool(true, "Grey out signals against the Day row", group="Filter",
      tooltip="Backtest Jan 2025 - Sep 2026: taking only Buy/Sell that agree with the Day row lifted win rate from ~50% to ~60% and cut drawdown ~40%.")
 
@@ -58,6 +64,44 @@ bandDirExpr() =>
 dayDirNow = request.security(syminfo.tickerid, "D", bandDirExpr()[1], lookahead=barmerge.lookahead_on)
 buyOk  = buySig  and (not dayOnly or dayDirNow == 1)
 sellOk = sellSig and (not dayOnly or dayDirNow == -1)
+
+goLong  = confirm1 ? (buyOk[1]  and bandDir == 1  and close > close[1]) : buyOk
+goShort = confirm1 ? (sellOk[1] and bandDir == -1 and close < close[1]) : sellOk
+
+// ── Profit lock: follow the trade the strategy would take ───────────────
+var int   tDir = 0
+var float tEntry = na
+var float tRisk = na
+var bool  tLocked = false
+var int   pendDir = 0
+if pendDir != 0                       // order from last bar fills at this open
+    tDir := pendDir
+    tEntry := open
+    tRisk := math.abs(open - stSlow[1])
+    tLocked := false
+    pendDir := 0
+lockHit = tDir != 0 and tLocked and (tDir == 1 ? low <= tEntry + lockAt * tRisk : high >= tEntry - lockAt * tRisk)
+if lockHit or (tDir == 1 and sellSig) or (tDir == -1 and buySig)
+    tDir := 0
+lockNow = false
+if tDir != 0 and not tLocked and (tDir == 1 ? high - tEntry : tEntry - low) >= lockTrig * tRisk
+    tLocked := true
+    lockNow := true
+if goLong and tDir != 1
+    pendDir := 1
+if goShort and tDir != -1
+    pendDir := -1
+plot(showLock and tDir != 0 and not tLocked ? tEntry + tDir * lockTrig * tRisk : na, "Lock trigger",
+     color=color.new(color.gray, 20), style=plot.style_linebr)
+plot(showLock and tDir != 0 and tLocked ? tEntry + tDir * lockAt * tRisk : na, "Locked stop",
+     color=color.yellow, style=plot.style_linebr, linewidth=2)
+if confirm1 and goLong
+    label.new(bar_index, low, "✓", style=label.style_label_up, color=#2e7d32, textcolor=color.white, size=size.tiny)
+if confirm1 and goShort
+    label.new(bar_index, high, "✓", style=label.style_label_down, color=#e53935, textcolor=color.white, size=size.tiny)
+alertcondition(lockNow, "Move stop to lock profit", "SS-clone: move stop to {{plot(\"Locked stop\")}} on {{ticker}}")
+alertcondition(goLong,  "Confirmed Buy",  "SS-clone confirmed Buy on {{ticker}} {{interval}}")
+alertcondition(goShort, "Confirmed Sell", "SS-clone confirmed Sell on {{ticker}} {{interval}}")
 
 // ── Plots ───────────────────────────────────────────────────────────────
 pFast = plot(stFast, "Inner line", color=color.new(#2962ff, 0), style=plot.style_stepline)

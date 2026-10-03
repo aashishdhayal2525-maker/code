@@ -1,7 +1,9 @@
 // This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0
 // Strategy version of swastika_signal_clone.pine for TradingView's Strategy
-// Tester. Same rules as swastika/backtest.py: orders fill at the next bar's
+// Tester. Same rules as swastika/engine.py: orders fill at the next bar's
 // open, 1 contract, 0.01% commission per side, 5 ticks slippage per side.
+// The Python engine checks the profit lock minute by minute; turn on
+// "Bar Magnifier" in the strategy properties to get closest to that.
 //@version=5
 strategy("Swastika Signal (reconstructed) - strategy", shorttitle="SS-clone strat", overlay=true,
          default_qty_type=strategy.fixed, default_qty_value=1,
@@ -15,6 +17,12 @@ slowMult  = input.float(6.0, "Outer line multiplier", step=0.1)
 cyanLen   = input.int(14,    "Cyan ATR length")
 cyanMult  = input.float(5.0, "Cyan ATR multiplier", step=0.1)
 emaLen    = input.int(200,   "Trend EMA length")
+useLock   = input.bool(true,  "Lock profit once the trade is ahead", group="Win-rate options",
+     tooltip="Once price moves +0.5R in your favour (R = entry to outer band), move the stop to +0.1R. Backtest: win rate ~60% -> ~80%, profit -12% to -22% (more in Gold 2026).")
+lockTrig  = input.float(0.5, "Lock trigger (R)", step=0.1,  group="Win-rate options")
+lockAt    = input.float(0.1, "Locked stop (R)",  step=0.05, group="Win-rate options")
+confirm1  = input.bool(false, "Wait 1 bar for follow-through", group="Win-rate options",
+     tooltip="Enter one bar later, only if the band held and that bar closed beyond the signal bar. Backtest: win rate ~90%, half the trades, ~40% less profit. Chosen after seeing results; small sample.")
 
 [stFast, dFastTV] = ta.supertrend(fastMult, stLen)
 [stSlow, dSlowTV] = ta.supertrend(slowMult, stLen)
@@ -44,15 +52,18 @@ if magicBuy or magicSell
 
 dayDir = request.security(syminfo.tickerid, "D", -dSlowTV[1], lookahead=barmerge.lookahead_on)
 
+goLong  = confirm1 ? (buySig[1]  and bandDir == 1  and close > close[1] and dayDir[1] == 1)  : (buySig  and dayDir == 1)
+goShort = confirm1 ? (sellSig[1] and bandDir == -1 and close < close[1] and dayDir[1] == -1) : (sellSig and dayDir == -1)
+
 if mode == "Day filter"
     if buySig
         strategy.close("S")
-        if dayDir == 1
-            strategy.entry("L", strategy.long)
     if sellSig
         strategy.close("L")
-        if dayDir == -1
-            strategy.entry("S", strategy.short)
+    if goLong and strategy.position_size <= 0
+        strategy.entry("L", strategy.long)
+    if goShort and strategy.position_size >= 0
+        strategy.entry("S", strategy.short)
 else if mode == "Reversal"
     if buySig
         strategy.entry("L", strategy.long)
@@ -76,6 +87,26 @@ else
         strategy.close("L")
     else if buySig
         strategy.close("S")
+
+// ── Profit lock (R = entry to the outer band at the signal bar) ─────────
+var float entryPx = na
+var float riskPts = na
+var bool  locked  = false
+newPos = strategy.position_size != 0 and math.sign(strategy.position_size) != math.sign(nz(strategy.position_size[1]))
+if newPos
+    entryPx := strategy.position_avg_price
+    riskPts := math.abs(entryPx - stSlow[1])   // band on the bar the order was placed
+    locked  := false
+if strategy.position_size > 0 and not locked and high - entryPx >= lockTrig * riskPts
+    locked := true
+if strategy.position_size < 0 and not locked and entryPx - low >= lockTrig * riskPts
+    locked := true
+if useLock and locked and strategy.position_size > 0
+    strategy.exit("lockL", from_entry="L", stop=entryPx + lockAt * riskPts)
+if useLock and locked and strategy.position_size < 0
+    strategy.exit("lockS", from_entry="S", stop=entryPx - lockAt * riskPts)
+plot(useLock and locked and strategy.position_size != 0 ? entryPx + math.sign(strategy.position_size) * lockAt * riskPts : na,
+     "Locked stop", color=color.yellow, style=plot.style_linebr, linewidth=2)
 
 pFast = plot(stFast, "Inner line", color=#2962ff, style=plot.style_stepline)
 pSlow = plot(stSlow, "Outer line", color=#ff1744, style=plot.style_stepline)

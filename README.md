@@ -32,5 +32,6 @@ pip install pandas numpy matplotlib
 mkdir -p data   # put SILVER_nearmonth_1min_2025.csv etc. here
 python run_backtest.py          # main backtest -> results/
 python research/calibrate.py    # match settings to the real signals
-python research/improve.py      # win-rate / drawdown variants
+python research/improve.py      # drawdown variants
+python research/winrate.py      # win-rate variants (+ winrate_sweep.py, winrate_final.py)
 ```

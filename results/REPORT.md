@@ -108,7 +108,53 @@ trade** (Silver Micro 1 kg units, Gold in 10 g units), so drawdowns are comparab
 * **ADX filter.**
 * **Requiring all 6 table rows to agree.** That leaves only 3–6 trades in 21 months.
 
-## 4. Caveats
+## 4. Raising the win rate further
+
+Twelve ideas were tested on top of V1 (`research/winrate.py`). The pass rule was
+fixed before running: **on 2025, raise win % on both metals and keep at least 75%
+of V1's profit (in R)**. Then 2026 is the check. R = distance from entry to the
+outer band, which is where the trade would be stopped anyway.
+
+| Idea | Silver win % (25 / 26) | Gold win % (25 / 26) | Passed? |
+|---|---|---|---|
+| V1 (Day filter) | 59 / 60 | 71 / 55 | baseline |
+| Wait 1 bar for follow-through | 63 / 75 | 64 / 71 | no (Gold 2025 lower) |
+| Wait 2 bars | 86 / 43 | 58 / 63 | no |
+| Enter on a 1 or 2 ATR pullback | 50 / 50–60 | 50–75 | no (fewer, worse trades) |
+| Also require the 75m row / 200 EMA | 25–50 | mixed | no |
+| Exit on the inner line | 47 / 67 | 77 / 55 | no |
+| Take 50% at 0.5R or 1R | 65–82 | 77–88 | no (profit −25% or more) |
+| Full exit at 1R | 65 / 67 | 77 / 73 | no (profit −45%) |
+| Lock +0.1R once up 1R | 65 / 67 | 77 / 73 | **yes** |
+| **Lock +0.1R once up 0.5R (W8)** | **82 / 73** | **88 / 73** | **yes** |
+
+**W8 is the answer:** once a trade is 0.5R in profit, move the stop to entry +0.1R.
+Trades that went your way and then reversed used to end as losses at the band.
+Now they end as small wins.
+
+| 1 lot, Jan 2025 – Sep 2026 | Trades | Win % | Net | PF | Max DD | Worst losing streak |
+|---|---:|---:|---:|---:|---:|---:|
+| Silver V1 | 32 | 59.4 | ₹57.9 L | 4.24 | −₹9.1 L | 3 |
+| **Silver W8** | 32 | **78.1** | ₹50.7 L | 4.77 | −₹8.0 L | 2 |
+| Silver W8 + 1-bar confirmation | 16 | 93.8 | ₹33.2 L | 19.6 | −₹1.8 L | 1 |
+| Gold V1 | 28 | 64.3 | ₹71.3 L | 4.99 | −₹7.7 L | 3 |
+| **Gold W8** | 28 | **82.1** | ₹55.6 L | 4.66 | −₹7.6 L | 2 |
+| Gold W8 + 1-bar confirmation | 18 | 88.9 | ₹42.3 L | 11.3 | −₹3.0 L | 1 |
+
+**The win rate isn't free:**
+* **Many of the extra wins are small.** 13 of Silver's 25 wins are under +0.2R. The
+  average win falls from 1.6R to 1.1R. The average loss *rises* (−0.65R → −0.86R),
+  because only the trades that never got going remain as losers.
+* **Profit drops 12% (Silver) and 22% (Gold) overall.** In 2026 alone it dropped 22%
+  and 60%. Gold's 2026 trends kept pulling back through +0.5R before running.
+* **It holds across trigger levels.** Any trigger from 0.4R to 0.6R gives about
+  80% wins (`research/winrate_sweep.csv`). Lock exactly at entry and the effect
+  disappears: after costs a breakeven exit is a small loss.
+* **W8 + 1-bar confirmation** reaches ~90% with tiny drawdowns, but it was picked
+  *after* seeing the results and rests on 16–18 trades. Treat it as promising, not
+  proven.
+
+## 5. Caveats
 
 * **Small sample:** V1 is 28–32 trades per metal. A win rate of 60% ± 9% is the
   honest range.
