@@ -17,12 +17,17 @@ slowMult  = input.float(6.0, "Outer line multiplier", step=0.1)
 cyanLen   = input.int(14,    "Cyan ATR length")
 cyanMult  = input.float(5.0, "Cyan ATR multiplier", step=0.1)
 emaLen    = input.int(200,   "Trend EMA length")
+htfLen    = input.int(20,    "Day/1h/4h filter band ATR length", group="Higher-timeframe filters")
+htfMult   = input.float(6.0, "Day/1h/4h filter band multiplier", step=0.1, group="Higher-timeframe filters",
+     tooltip="The Day, 1h and 4h filters always use the real Swastika band (ATR 20, x6), even if the chart band above is changed.")
 useLock   = input.bool(true,  "Lock profit once the trade is ahead", group="Win-rate options",
      tooltip="Once price moves +0.5R in your favour (R = entry to outer band), move the stop to +0.1R. Backtest: win rate ~60% -> ~80%, profit -12% to -22% (more in Gold 2026).")
 lockTrig  = input.float(0.5, "Lock trigger (R)", step=0.1,  group="Win-rate options")
 lockAt    = input.float(0.1, "Locked stop (R)",  step=0.05, group="Win-rate options")
 reN       = input.int(0, "Re-enter the trend on an N-bar breakout (0 = off)", minval=0, group="More trades",
      tooltip="While flat and the band and Day row still agree, re-enter when a bar closes beyond the previous N bars' high (long) / low (short). Backtest with N = 20 on the 30m chart: Silver 3.5 trades/month, 71% wins; Gold weaker in 2026.")
+useH4     = input.bool(false, "Only trade with the 4h band", group="Win-rate options")
+exitH1    = input.bool(false, "Also exit when the 1h band flips against the trade", group="Win-rate options")
 useH1     = input.bool(false, "Only trade with the 1h band (for 5m/15m charts)", group="Win-rate options",
      tooltip="Take signals only when the real 1h Swastika band agrees. Silver 5m with this, lock 0.15R at 0.3R and re-entry N = 120: ~16 trades/month, ~76% wins in the backtest.")
 confirm1  = input.bool(false, "Wait 1 bar for follow-through", group="Win-rate options",
@@ -54,10 +59,14 @@ magicSell = bear and not legFired
 if magicBuy or magicSell
     legFired := true
 
-dayDir = request.security(syminfo.tickerid, "D", -dSlowTV[1], lookahead=barmerge.lookahead_on)
+htfDirExpr() =>
+    [_, d] = ta.supertrend(htfMult, htfLen)
+    -d
+dayDir = request.security(syminfo.tickerid, "D", htfDirExpr()[1], lookahead=barmerge.lookahead_on)
 
-h1Dir = request.security(syminfo.tickerid, "60", -dSlowTV[1], lookahead=barmerge.lookahead_on)
-h1Ok(side) => not useH1 or h1Dir == side
+h1Dir = request.security(syminfo.tickerid, "60", htfDirExpr()[1], lookahead=barmerge.lookahead_on)
+h4Dir = request.security(syminfo.tickerid, "240", htfDirExpr()[1], lookahead=barmerge.lookahead_on)
+h1Ok(side) => (not useH1 or h1Dir == side) and (not useH4 or h4Dir == side)
 
 goLong  = h1Ok(1)  and (confirm1 ? (buySig[1]  and bandDir == 1  and close > close[1] and dayDir[1] == 1)  : (buySig  and dayDir == 1))
 goShort = h1Ok(-1) and (confirm1 ? (sellSig[1] and bandDir == -1 and close < close[1] and dayDir[1] == -1) : (sellSig and dayDir == -1))
@@ -103,6 +112,11 @@ else
         strategy.close("L")
     else if buySig
         strategy.close("S")
+
+if exitH1 and strategy.position_size > 0 and h1Dir == -1
+    strategy.close("L", comment="1h flip")
+if exitH1 and strategy.position_size < 0 and h1Dir == 1
+    strategy.close("S", comment="1h flip")
 
 // ── Profit lock (R = entry to the outer band at the signal bar) ─────────
 var float entryPx = na

@@ -29,6 +29,7 @@ class Rules:
     exit_fast: bool = False          # exit when the inner (x5) line flips against the trade
     day_filter: bool = False         # only trade with the Day table row
     require: tuple = ()              # extra timeframe rows that must agree, e.g. ("75m",)
+    exit_rows: tuple = ()            # also exit when any of these timeframe rows turns against the trade
     ema_filter: bool = False         # only trade on the 200 EMA's side
     adx_min: float | None = None     # skip entries when ADX(14) is below this
     long_only: bool = False
@@ -151,6 +152,8 @@ def simulate(minutes: pd.DataFrame, bars: pd.DataFrame, rules: Rules, contract: 
                 bank(mo[i], st["open_qty"], mt[i], "flip", s)
             elif pos != 0 and rules.exit_fast and fast_dir[s] == -pos:
                 bank(mo[i], st["open_qty"], mt[i], "inner line", s)
+            elif pos != 0 and any(rows[n][s] == -pos for n in rules.exit_rows):
+                bank(mo[i], st["open_qty"], mt[i], "higher TF flip", s)
             if st["pos"] != 0 and rules.trail_band and band_dir[s] == st["pos"]:
                 st["stop"] = max(st["stop"], band[s]) if st["pos"] == 1 else min(st["stop"], band[s])
             # Cancel a waiting entry once the band turns against it.

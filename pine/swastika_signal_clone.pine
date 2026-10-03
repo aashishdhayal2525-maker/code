@@ -13,8 +13,13 @@ cyanMult  = input.float(5.0, "Cyan ATR multiplier",    group="Cyan trail", step=
 cyanSm    = input.int(5,     "Cyan smoothing (EMA)",   group="Cyan trail")
 emaLen    = input.int(200,   "Trend EMA length",       group="Trend EMA")
 showTable = input.bool(true, "Show timeframe table",   group="Table")
+htfLen    = input.int(20,    "Day/1h/4h filter band ATR length", group="Higher-timeframe filters")
+htfMult   = input.float(6.0, "Day/1h/4h filter band multiplier", step=0.1, group="Higher-timeframe filters",
+     tooltip="The Day, 1h and 4h filters always use the real Swastika band (ATR 20, x6), even if the chart band is changed.")
 confirm1  = input.bool(false, "Wait 1 bar for follow-through", group="Filter",
      tooltip="Marks the bar after a Day-confirmed signal with a check if the band held and price followed through. Backtest win rate ~90% but half the trades.")
+useH4     = input.bool(false, "Only signals with the 4h band", group="Filter")
+exitH1    = input.bool(false, "Profit-lock tracker: exit when the 1h band flips", group="Profit lock")
 useH1     = input.bool(false, "Only signals with the 1h band (for 5m/15m charts)", group="Filter",
      tooltip="Grey out signals the real 1h Swastika band disagrees with. Silver 5m + this + lock 0.15R at 0.3R + re-entry N = 120: ~16 trades/month, ~76% wins in the backtest.")
 reN       = input.int(0, "Re-enter the trend on an N-bar breakout (0 = off)", minval=0, group="More trades",
@@ -64,11 +69,17 @@ bandDirExpr() =>
     [_, d] = ta.supertrend(slowMult, stLen)
     -d
 
+htfDirExpr() =>
+    [_, d] = ta.supertrend(htfMult, htfLen)
+    -d
+
 // Day trend = yesterday's finished daily bar, same as the backtest.
-dayDirNow = request.security(syminfo.tickerid, "D", bandDirExpr()[1], lookahead=barmerge.lookahead_on)
-h1Dir  = request.security(syminfo.tickerid, "60", bandDirExpr()[1], lookahead=barmerge.lookahead_on)
-buyOk  = buySig  and (not dayOnly or dayDirNow == 1)  and (not useH1 or h1Dir == 1)
-sellOk = sellSig and (not dayOnly or dayDirNow == -1) and (not useH1 or h1Dir == -1)
+dayDirNow = request.security(syminfo.tickerid, "D", htfDirExpr()[1], lookahead=barmerge.lookahead_on)
+h1Dir  = request.security(syminfo.tickerid, "60", htfDirExpr()[1], lookahead=barmerge.lookahead_on)
+h4Dir  = request.security(syminfo.tickerid, "240", htfDirExpr()[1], lookahead=barmerge.lookahead_on)
+htfOk(side) => (not useH1 or h1Dir == side) and (not useH4 or h4Dir == side)
+buyOk  = buySig  and (not dayOnly or dayDirNow == 1)  and htfOk(1)
+sellOk = sellSig and (not dayOnly or dayDirNow == -1) and htfOk(-1)
 
 goLong  = confirm1 ? (buyOk[1]  and bandDir == 1  and close > close[1]) : buyOk
 goShort = confirm1 ? (sellOk[1] and bandDir == -1 and close < close[1]) : sellOk
@@ -86,7 +97,7 @@ if pendDir != 0                       // order from last bar fills at this open
     tLocked := false
     pendDir := 0
 lockHit = tDir != 0 and tLocked and (tDir == 1 ? low <= tEntry + lockAt * tRisk : high >= tEntry - lockAt * tRisk)
-if lockHit or (tDir == 1 and sellSig) or (tDir == -1 and buySig)
+if lockHit or (tDir == 1 and sellSig) or (tDir == -1 and buySig) or (exitH1 and tDir != 0 and h1Dir == -tDir)
     tDir := 0
 lockNow = false
 if tDir != 0 and not tLocked and (tDir == 1 ? high - tEntry : tEntry - low) >= lockTrig * tRisk
@@ -94,8 +105,8 @@ if tDir != 0 and not tLocked and (tDir == 1 ? high - tEntry : tEntry - low) >= l
     lockNow := true
 hiN = ta.highest(high, math.max(reN, 1))[1]
 loN = ta.lowest(low, math.max(reN, 1))[1]
-reLong  = reN > 0 and tDir == 0 and pendDir == 0 and not goLong and not goShort and bandDir == 1  and dayDirNow == 1  and (not useH1 or h1Dir == 1)  and close > hiN
-reShort = reN > 0 and tDir == 0 and pendDir == 0 and not goLong and not goShort and bandDir == -1 and dayDirNow == -1 and (not useH1 or h1Dir == -1) and close < loN
+reLong  = reN > 0 and tDir == 0 and pendDir == 0 and not goLong and not goShort and bandDir == 1  and dayDirNow == 1  and htfOk(1)  and close > hiN
+reShort = reN > 0 and tDir == 0 and pendDir == 0 and not goLong and not goShort and bandDir == -1 and dayDirNow == -1 and htfOk(-1) and close < loN
 if reLong
     pendDir := 1
     label.new(bar_index, low, "↻ Buy", style=label.style_label_up, color=color.new(#2e7d32, 30), textcolor=color.white, size=size.small)
