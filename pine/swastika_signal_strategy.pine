@@ -1,0 +1,72 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0
+// Strategy version of swastika_signal_clone.pine for TradingView's Strategy
+// Tester. Same rules as swastika/backtest.py: orders fill at the next bar's
+// open, 1 contract, 0.01% commission per side, 5 ticks slippage per side.
+//@version=5
+strategy("Swastika Signal (reconstructed) - strategy", shorttitle="SS-clone strat", overlay=true,
+         default_qty_type=strategy.fixed, default_qty_value=1,
+         commission_type=strategy.commission.percent, commission_value=0.01, slippage=5)
+
+mode      = input.string("Magical", "Trade mode", options=["Reversal", "EMA filter", "Magical"])
+stLen     = input.int(10,    "Band ATR length")
+fastMult  = input.float(2.0, "Inner line multiplier", step=0.1)
+slowMult  = input.float(3.0, "Outer line multiplier", step=0.1)
+cyanLen   = input.int(14,    "Cyan ATR length")
+cyanMult  = input.float(5.0, "Cyan ATR multiplier", step=0.1)
+emaLen    = input.int(200,   "Trend EMA length")
+
+[stFast, dFastTV] = ta.supertrend(fastMult, stLen)
+[stSlow, dSlowTV] = ta.supertrend(slowMult, stLen)
+bandDir = -dSlowTV
+buySig  = bandDir == 1  and bandDir[1] == -1
+sellSig = bandDir == -1 and bandDir[1] == 1
+
+nLoss = cyanMult * ta.atr(cyanLen)
+var float trail = na
+p = nz(trail[1])
+trail := close > p and close[1] > p ? math.max(p, close - nLoss) :
+         close < p and close[1] < p ? math.min(p, close + nLoss) :
+         close > p ? close - nLoss : close + nLoss
+cyanDir  = close > trail ? 1 : -1
+trendEma = ta.ema(close, emaLen)
+emaDir   = close > trendEma ? 1 : -1
+
+bull = bandDir == 1  and cyanDir == 1  and emaDir == 1
+bear = bandDir == -1 and cyanDir == -1 and emaDir == -1
+var bool legFired = false
+if bandDir != bandDir[1]
+    legFired := false
+magicBuy  = bull and not legFired
+magicSell = bear and not legFired
+if magicBuy or magicSell
+    legFired := true
+
+if mode == "Reversal"
+    if buySig
+        strategy.entry("L", strategy.long)
+    if sellSig
+        strategy.entry("S", strategy.short)
+else if mode == "EMA filter"
+    if buySig
+        strategy.close("S")
+        if emaDir == 1
+            strategy.entry("L", strategy.long)
+    if sellSig
+        strategy.close("L")
+        if emaDir == -1
+            strategy.entry("S", strategy.short)
+else
+    if magicBuy
+        strategy.entry("L", strategy.long)
+    else if magicSell
+        strategy.entry("S", strategy.short)
+    else if sellSig
+        strategy.close("L")
+    else if buySig
+        strategy.close("S")
+
+pFast = plot(stFast, "Inner line", color=#2962ff, style=plot.style_stepline)
+pSlow = plot(stSlow, "Outer line", color=#ff1744, style=plot.style_stepline)
+fill(pFast, pSlow, color=bandDir == 1 ? color.new(#2e7d32, 55) : color.new(#c62828, 55))
+plot(ta.ema(trail, 5), "Cyan trail", color=#00bcd4, linewidth=2)
+plot(trendEma, "Trend EMA", color=#e040fb, linewidth=2)

@@ -1,0 +1,103 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0
+// Reconstruction of the "Swastika Signal" chart components from how they draw.
+// It is NOT the original (closed) source. Logic matches swastika/indicator.py.
+//@version=5
+indicator("Swastika Signal (reconstructed)", shorttitle="SS-clone", overlay=true, max_labels_count=500)
+
+// ── Inputs ──────────────────────────────────────────────────────────────
+stLen     = input.int(10,    "Band ATR length",        group="Band (Buy/Sell)")
+fastMult  = input.float(2.0, "Inner line multiplier",  group="Band (Buy/Sell)", step=0.1)
+slowMult  = input.float(3.0, "Outer line multiplier",  group="Band (Buy/Sell)", step=0.1)
+cyanLen   = input.int(14,    "Cyan ATR length",        group="Cyan trail")
+cyanMult  = input.float(5.0, "Cyan ATR multiplier",    group="Cyan trail", step=0.1)
+cyanSm    = input.int(5,     "Cyan smoothing (EMA)",   group="Cyan trail")
+emaLen    = input.int(200,   "Trend EMA length",       group="Trend EMA")
+showTable = input.bool(true, "Show timeframe table",   group="Table")
+
+// ── Band: two SuperTrends, signal on the outer one ──────────────────────
+[stFast, dFastTV] = ta.supertrend(fastMult, stLen)
+[stSlow, dSlowTV] = ta.supertrend(slowMult, stLen)
+bandDir = -dSlowTV                       // TradingView uses -1 for up; flip to +1 = up
+
+buySig  = bandDir == 1  and bandDir[1] == -1
+sellSig = bandDir == -1 and bandDir[1] == 1
+
+// ── Cyan: UT-Bot style ATR trailing stop ────────────────────────────────
+nLoss = cyanMult * ta.atr(cyanLen)
+var float trail = na
+p = nz(trail[1])
+trail := close > p and close[1] > p ? math.max(p, close - nLoss) :
+         close < p and close[1] < p ? math.min(p, close + nLoss) :
+         close > p ? close - nLoss : close + nLoss
+cyanDir = close > trail ? 1 : -1
+cyan    = ta.ema(trail, cyanSm)
+
+// ── Trend EMA ───────────────────────────────────────────────────────────
+trendEma = ta.ema(close, emaLen)
+emaDir   = close > trendEma ? 1 : -1
+
+// ── Magical: first bar of each band leg where all three agree ───────────
+bull = bandDir == 1  and cyanDir == 1  and emaDir == 1
+bear = bandDir == -1 and cyanDir == -1 and emaDir == -1
+var bool legFired = false
+if bandDir != bandDir[1]
+    legFired := false
+magicBuy  = bull and not legFired
+magicSell = bear and not legFired
+if magicBuy or magicSell
+    legFired := true
+
+// ── Plots ───────────────────────────────────────────────────────────────
+pFast = plot(stFast, "Inner line", color=color.new(#2962ff, 0), style=plot.style_stepline)
+pSlow = plot(stSlow, "Outer line", color=color.new(#ff1744, 0), style=plot.style_stepline)
+fill(pFast, pSlow, color=bandDir == 1 ? color.new(#2e7d32, 55) : color.new(#c62828, 55))
+plot(cyan,     "Cyan trail", color=#00bcd4, linewidth=2)
+plot(trendEma, "Trend EMA",  color=#e040fb, linewidth=2)
+
+if buySig
+    label.new(bar_index, low,  "Buy",  style=label.style_label_up,   color=#2e7d32, textcolor=color.white)
+if sellSig
+    label.new(bar_index, high, "Sell", style=label.style_label_down, color=#e53935, textcolor=color.white)
+if magicBuy
+    label.new(bar_index, low,  "Magical BUY",  style=label.style_label_up,   color=#00acc1, textcolor=color.white)
+if magicSell
+    label.new(bar_index, high, "Magical SELL", style=label.style_label_down, color=#00acc1, textcolor=color.white)
+
+alertcondition(buySig,    "Buy",          "SS-clone Buy on {{ticker}} {{interval}}")
+alertcondition(sellSig,   "Sell",         "SS-clone Sell on {{ticker}} {{interval}}")
+alertcondition(magicBuy,  "Magical BUY",  "SS-clone Magical BUY on {{ticker}} {{interval}}")
+alertcondition(magicSell, "Magical SELL", "SS-clone Magical SELL on {{ticker}} {{interval}}")
+
+// ── Timeframe table (non-repainting: only finished bars are used) ───────
+bandDirExpr() =>
+    [_, d] = ta.supertrend(slowMult, stLen)
+    -d
+
+tfDir(tf) =>
+    higher = timeframe.in_seconds(tf) > timeframe.in_seconds()
+    hi = request.security(syminfo.tickerid, tf, bandDirExpr()[1], lookahead=barmerge.lookahead_on)
+    lo = request.security(syminfo.tickerid, tf, bandDirExpr())
+    higher ? hi : lo
+
+d3  = tfDir("3")
+d5  = tfDir("5")
+d15 = tfDir("15")
+d30 = tfDir("30")
+d75 = tfDir("75")
+dD  = tfDir("D")
+
+var table t = table.new(position.bottom_left, 2, 7, border_width=1)
+row(i, name, d) =>
+    table.cell(t, 0, i, name, bgcolor=color.white, text_color=color.gray, text_size=size.small)
+    table.cell(t, 1, i, d == 1 ? "BUY" : "SELL",
+               bgcolor=d == 1 ? color.new(#26a69a, 30) : color.new(#ef5350, 30),
+               text_color=color.white, text_size=size.small)
+if showTable and barstate.islast
+    table.cell(t, 0, 0, "Timeframe", bgcolor=#1e222d, text_color=color.white, text_size=size.small)
+    table.cell(t, 1, 0, "BUY/SELL",  bgcolor=#1e222d, text_color=color.white, text_size=size.small)
+    row(1, "3 Min",  d3)
+    row(2, "5 Min",  d5)
+    row(3, "15 Min", d15)
+    row(4, "30 Min", d30)
+    row(5, "75 Min", d75)
+    row(6, "Day",    dD)
