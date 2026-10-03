@@ -23,7 +23,7 @@ def score(df):
     df["rf_25"] = [recovery(n, d) for n, d in zip(df.net_25, df.dd_25)]
     df["rf_26"] = [recovery(n, d) for n, d in zip(df.net_26, df.dd_26)]
     df["eligible"] = (df.tpm_25 >= 10) & (df.win_25 >= 70) & (df.pf_25 >= 1.5)
-    idx = {tuple(r[k] for k in KEYS): r.rf_25 for r in df.itertuples()}
+    idx = {tuple(getattr(r, k) for k in KEYS): r.rf_25 for r in df.itertuples()}
     smooth = []
     for r in df.itertuples():
         me = tuple(getattr(r, k) for k in KEYS)

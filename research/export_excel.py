@@ -33,9 +33,15 @@ STRATS = [  # code, name, rules
                                                                    reentry_breakout=120)),
     ("Q2", "Q1 with a bigger lock 0.2R@0.4R (Gold setting)", replace(BASE, require=("60m",), breakeven_r=0.4, lock_r=0.2,
                                                                        reentry_breakout=120)),
+    ("BS", "BEST Silver: 5m, Day+4h, lock 0.2R@0.4R, re-entry 10h", replace(BASE, require=("240m",), breakeven_r=0.4,
+                                                                             lock_r=0.2, reentry_breakout=120)),
+    ("BG", "BEST Gold: 15m x3/x4, Day+1h, lock 0.2R@0.4R, re-entry 5h", replace(BASE, require=("60m",), breakeven_r=0.4,
+                                                                                 lock_r=0.2, reentry_breakout=20)),
 ]
 FAST = replace(Params(), st_fast_mult=3.0, st_slow_mult=4.0)
-SETUP = {"T6": (60, FAST), "T7": (30, Params()), "U1": (15, Params()), "U9": (5, Params()), "Q1": (5, Params()), "Q2": (5, Params())}  # code -> (bar minutes, band params); default 1h, real band
+FAST45 = FAST  # x3/x4 band, used by BG
+SETUP = {"T6": (60, FAST), "T7": (30, Params()), "U1": (15, Params()), "U9": (5, Params()), "Q1": (5, Params()), "Q2": (5, Params()),
+         "BS": (5, Params()), "BG": (15, FAST45)}  # code -> (bar minutes, band params); default 1h, real band
 SYMS = list(CONTRACTS)
 MONTHS = pd.date_range("2025-01-01", "2026-09-01", freq="MS")
 
@@ -48,8 +54,9 @@ for sym, con in CONTRACTS.items():
         tf, prm = SETUP.get(code, (60, Params()))
         if (tf, repr(prm)) not in cache:
             bars = compute(resample(m, tf), prm)
-            d = mtf_directions(m, bars, {"60m": 60, "Day": None}, prm)
-            cache[(tf, repr(prm))] = (bars, d["Day"].to_numpy(), {"60m": d["60m"].to_numpy()})
+            d = mtf_directions(m, bars, {"60m": 60, "240m": 240, "Day": None}, Params())
+            cache[(tf, repr(prm))] = (bars, d["Day"].to_numpy(),
+                                      {"60m": d["60m"].to_numpy(), "240m": d["240m"].to_numpy()})
         bars, day, extra = cache[(tf, repr(prm))]
         tr = simulate(m, bars, rules, con, day_dir=day, rows=extra)
         tr["symbol"], tr["code"] = sym, code
@@ -239,10 +246,10 @@ for sym in SYMS:
         fmts = [None, None, None, CNT, CNT, PCT, INR, INR, INR, INR, INR, "0.00", INR, PCT, INR, INR, "0.0"]
         for j, (v, fm) in enumerate(zip(cells, fmts), 1):
             style(ws_sum.cell(i, j, v), bold if j <= 2 else base, fm,
-                  sub_fill if code in ("W8",) else None)
+                  sub_fill if (sym, code) in (("SILVER", "BS"), ("GOLD", "BG")) else None)
         i += 1
-ws_sum.cell(i + 1, 1, "Highlighted rows = recommended setup (Day filter + profit lock). "
-                      "W8C was chosen after seeing results and rests on 16-18 trades. T6/T7/U1/U9 trade more often at a lower win rate. For 10+ trades a month with a high win rate: Q1 on Silver.").font = \
+ws_sum.cell(i + 1, 1, "Highlighted rows = recommended setup per metal (BS for Silver, BG for Gold). "
+                      "W8C was chosen after seeing results and rests on 16-18 trades. T6/T7/U1/U9 trade more often at a lower win rate. Recommended: BS on Silver, BG on Gold (chosen on 2025 only, held up in 2026).").font = \
     Font(name=F, size=9, italic=True, color="595959")
 for j, w in enumerate([10, 9, 26, 8, 7, 8, 14, 13, 13, 12, 12, 10, 15, 11, 13, 13, 9], 1):
     ws_sum.column_dimensions[L(j)].width = w
@@ -262,7 +269,8 @@ notes = [
            "R = distance from entry to the outer band at entry. Checked minute by minute."),
     ("W8C", "W8 + wait one bar after the signal and enter only if the band held and the bar closed beyond the signal bar. "
             "Chosen after seeing results; small sample (16-18 trades per metal)."),
-    ("T6", "W8 with a faster band (inner x3 / outer x4, ATR 20) on 1h. About twice the trades; no longer matches the real indicator's settings."),
+    ("T6", "W8 with a faster band (inner x3 / outer x4, ATR 20) on 1h. About twice the trades; no longer matches the real indicator's settings. "
+           "Its Day filter uses the real band (x6), as in the Pine scripts, so figures differ slightly from REPORT.md section 5."),
     ("T7", "W8 on the 30m chart (real band settings) + trend re-entry: while flat and the band and Day row still agree, "
            "re-enter when a bar closes beyond the previous 20 bars' high (long) or low (short)."),
     ("U1", "W8 rules (real band settings, Day filter, profit lock) on the 15m chart. ~6 trades/month per metal."),
@@ -274,6 +282,9 @@ notes = [
            "The re-entry part was chosen after seeing results (research/fast_winrate_followup.py)."),
     ("Q2", "Q1 with the profit lock at +0.2R once +0.4R. Meant for Gold: its costs are ~2x Silver's as a share of R on 5m, "
            "so the smaller Q1 lock is eaten by fills (research/silver_vs_gold.py, research/gold_lock.py). Chosen after seeing results."),
+    ("BS / BG", "Chosen by a 3,456-config search (research/optimize.py) using 2025 only at 20-tick fills; 2026 was held out. "
+                "BS = Silver's pick, BG = Gold's pick; both are run on both metals here. Higher-timeframe filters use the "
+                "real band (ATR 20, x6). See REPORT.md section 9."),
     ("Execution", "Signal on 1h close, fill at next bar's open. Stops fill at the stop price, or the minute's open if it gapped."),
     ("Costs", "Already inside 'Net points / lot': 0.02% of notional per round trip + 5 ticks slippage per side, "
               "plus one extra round trip for every roll a position is held through."),

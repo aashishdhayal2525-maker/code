@@ -303,7 +303,82 @@ diagnosis, so treat it as tuned):
 Q2 lifts Gold to about 69% wins at about 14 trades a month, but it is still well behind
 Silver (76%, PF 2.6). For Silver, the smaller Q1 lock remains the best.
 
-## 9. Caveats
+## 9. Systematic search: the best setup for each metal
+
+Up to section 8, each step changed one thing because the goal kept changing. This
+section searches everything at once (`research/optimize.py`, 3,456 configurations,
+both metals):
+
+| Setting | Values searched |
+|---|---|
+| Entry chart | 3m, 5m, 10m, 15m |
+| Entry band (ATR 20) | ×3/×4, ×4/×5, ×5/×6 (real) |
+| Trend filters (real band on higher timeframes) | Day, Day+1h, Day+4h, Day+1h+4h, 1h, 1h+4h |
+| Profit lock (lock at trigger) | 0.1R@0.3R, 0.15R@0.3R, 0.2R@0.4R, 0.25R@0.5R |
+| Trend re-entry lookback | off, 5 h, 10 h |
+| Also exit when the 1h band flips | no / yes |
+
+**Protocol, fixed before running:**
+* **Fills:** every config is tested at 20 ticks of slippage (bad fills).
+* **Eligibility, judged on 2025 only:** ≥ 10 trades/month, win ≥ 70%, PF ≥ 1.5.
+* **Ranking:** recovery factor (net ÷ max drawdown), averaged with all one-step
+  neighbouring settings, so a lucky isolated setting can't win.
+* **Held out:** 2026 is only reported for the pick, never used to choose it.
+
+**The picks:**
+
+| | Silver pick (BS) | Gold pick (BG) |
+|---|---|---|
+| Entry chart | **5m**, real band ×5/×6 | **15m**, band ×3/×4 |
+| Trade only when these agree | Day + **4h** | Day + **1h** |
+| Profit lock | +0.2R once +0.4R | +0.2R once +0.4R |
+| Trend re-entry | 10 h breakout (120 bars) | 5 h breakout (20 bars) |
+
+**Results at 20-tick fills** (2026 is out-of-sample):
+
+| | Trades/month | Win % | PF | Net (1 lot) | Max DD | Worst losing run |
+|---|---:|---:|---:|---:|---:|---:|
+| Silver BS, 2025 | 11.7 | 76.4% | 3.15 | ₹21.6 L | −₹1.9 L | 3 |
+| **Silver BS, 2026 (unseen)** | **15.6** | **72.9%** | **2.32** | **₹60.2 L** | −₹9.6 L | 4 |
+| Gold BG, 2025 | 10.0 | 78.3% | 2.61 | ₹23.2 L | −₹3.4 L | 3 |
+| **Gold BG, 2026 (unseen)** | **9.4** | **71.8%** | **2.23** | **₹41.1 L** | −₹7.4 L | 3 |
+| Silver BS, full period | 13.3 | 74.6% | 2.47 | ₹81.8 L | −₹9.6 L | 4 |
+| Gold BG, full period | 9.8 | 75.6% | 2.35 | ₹64.3 L | −₹7.4 L | 3 |
+
+With normal fills (5 ticks, as in the workbook): Silver BS 75.4% / ₹84.4 L; Gold BG
+78.0% / ₹70.6 L.
+
+**How much to trust it:**
+* **Both picks held up on the unseen 2026 data**, with about 72–73% wins and PF above
+  2.2.
+* **Silver is the more robust.** 148 configs passed on 2025, and 13 of the top 20 stayed
+  good in 2026.
+* **Gold is fragile.** Only 12 configs passed, and 6 of the top 20 held. The Gold pick
+  held up, but Gold has far fewer good setups, so expect more variation live.
+* **Fine ranking is noise.** Among configs that passed, the 2025 ranking didn't predict
+  the 2026 ranking (rank correlation −0.41 Silver, −0.1 Gold). The search reliably
+  separates good setups from bad ones, but which good one ends up "best" is luck.
+  That's why the pick is scored together with its neighbours.
+* **Each metal needs its own setup.** BS run on Gold gives 64% / PF 1.48; BG run on
+  Silver gives 72% / PF 1.53.
+* **Trade counts per month.** Silver BS averages 13 a month (10+ in 13 of 20 months).
+  Gold BG averages 9.8 (10+ in 13 of 20). Together they average about 23 a month.
+
+**TradingView settings:**
+
+| | Silver (BS) | Gold (BG) |
+|---|---|---|
+| Chart | 5 minutes | 15 minutes |
+| Band ATR length / inner / outer | 20 / 5 / 6 | 20 / 3 / 4 |
+| Mode / Day filter | Day filter on | Day filter on |
+| Only trade with the 1h band | off | **on** |
+| Only trade with the 4h band | **on** | off |
+| Lock trigger / locked stop | 0.4 / 0.2 | 0.4 / 0.2 |
+| Re-entry N bars | 120 | 20 |
+| Exit when the 1h band flips | off | off |
+| Day/1h/4h filter band | 20 / 6 (default) | 20 / 6 (default) |
+
+## 10. Caveats
 
 * **Small sample:** V1 is 28–32 trades per metal. A win rate of 60% ± 9% is the
   honest range.
@@ -311,6 +386,8 @@ Silver (76%, PF 2.6). For Silver, the smaller Q1 lock remains the best.
   Jul–Sep 2026 even V1 lost (−₹2.9 L on Silver: 4 shorts, 1 winner).
 * **Calibration used one Silver screenshot.** Gold is assumed to use the same
   settings.
+* **The workbook's Day filter now always uses the real band (×6)**, matching the Pine scripts. The T6 rows
+  in the workbook therefore differ slightly from section 5, where T6's Day filter used its own ×4 band.
 * **The Day row is non-repainting here** (it uses the finished previous day). The live
   TradingView table updates during the day.
 * **Rolls:** back-adjustment removes the overnight move on roll days.
