@@ -29,9 +29,11 @@ STRATS = [  # code, name, rules
     ("T7", "W8 on 30m + trend re-entry", replace(BASE, breakeven_r=0.5, lock_r=0.1, reentry_breakout=20)),
     ("U1", "W8 on 15m chart", replace(BASE, breakeven_r=0.5, lock_r=0.1)),
     ("U9", "W8 on 5m chart", replace(BASE, breakeven_r=0.5, lock_r=0.1)),
+    ("Q1", "5m: 1h filter, lock 0.15R@0.3R, re-entry 120", replace(BASE, require=("60m",), breakeven_r=0.3, lock_r=0.15,
+                                                                   reentry_breakout=120)),
 ]
 FAST = replace(Params(), st_fast_mult=3.0, st_slow_mult=4.0)
-SETUP = {"T6": (60, FAST), "T7": (30, Params()), "U1": (15, Params()), "U9": (5, Params())}  # code -> (bar minutes, band params); default 1h, real band
+SETUP = {"T6": (60, FAST), "T7": (30, Params()), "U1": (15, Params()), "U9": (5, Params()), "Q1": (5, Params())}  # code -> (bar minutes, band params); default 1h, real band
 SYMS = list(CONTRACTS)
 MONTHS = pd.date_range("2025-01-01", "2026-09-01", freq="MS")
 
@@ -44,9 +46,10 @@ for sym, con in CONTRACTS.items():
         tf, prm = SETUP.get(code, (60, Params()))
         if (tf, repr(prm)) not in cache:
             bars = compute(resample(m, tf), prm)
-            cache[(tf, repr(prm))] = (bars, mtf_directions(m, bars, {"Day": None}, prm)["Day"].to_numpy())
-        bars, day = cache[(tf, repr(prm))]
-        tr = simulate(m, bars, rules, con, day_dir=day)
+            d = mtf_directions(m, bars, {"60m": 60, "Day": None}, prm)
+            cache[(tf, repr(prm))] = (bars, d["Day"].to_numpy(), {"60m": d["60m"].to_numpy()})
+        bars, day, extra = cache[(tf, repr(prm))]
+        tr = simulate(m, bars, rules, con, day_dir=day, rows=extra)
         tr["symbol"], tr["code"] = sym, code
         tr["net_pts"] = tr["net_inr"] / con.multiplier
         rows.append(tr)
@@ -237,7 +240,7 @@ for sym in SYMS:
                   sub_fill if code in ("W8",) else None)
         i += 1
 ws_sum.cell(i + 1, 1, "Highlighted rows = recommended setup (Day filter + profit lock). "
-                      "W8C was chosen after seeing results and rests on 16-18 trades. T6/T7/U1/U9 trade more often at a lower win rate. For 10+ trades a month: U9 on Silver, or U1 on both metals.").font = \
+                      "W8C was chosen after seeing results and rests on 16-18 trades. T6/T7/U1/U9 trade more often at a lower win rate. For 10+ trades a month with a high win rate: Q1 on Silver.").font = \
     Font(name=F, size=9, italic=True, color="595959")
 for j, w in enumerate([10, 9, 26, 8, 7, 8, 14, 13, 13, 12, 12, 10, 15, 11, 13, 13, 9], 1):
     ws_sum.column_dimensions[L(j)].width = w
@@ -263,6 +266,10 @@ notes = [
     ("U1", "W8 rules (real band settings, Day filter, profit lock) on the 15m chart. ~6 trades/month per metal."),
     ("U9", "W8 rules on the 5m chart. ~16 trades/month per metal. Silver held in both years; Gold fell to PF 1.1 in 2026 "
            "and is fragile to slippage (research/ten_trades_costs.csv)."),
+    ("Q1", "5m chart, real band. Take signals only when the 1h band AND the Day row agree; once +0.3R, lock the stop at +0.15R; "
+           "while flat and all three still agree, re-enter on a close beyond the last 120 bars' (10 h) high/low. "
+           "Silver: ~16 trades/month, ~76% wins, held at 20-tick slippage. Gold: win rate falls to ~59% at 20 ticks. "
+           "The re-entry part was chosen after seeing results (research/fast_winrate_followup.py)."),
     ("Execution", "Signal on 1h close, fill at next bar's open. Stops fill at the stop price, or the minute's open if it gapped."),
     ("Costs", "Already inside 'Net points / lot': 0.02% of notional per round trip + 5 ticks slippage per side, "
               "plus one extra round trip for every roll a position is held through."),

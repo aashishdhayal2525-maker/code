@@ -235,7 +235,38 @@ metal.
 * **The price of more trades is win rate.** 1h W8: ~80% wins, 1.4 trades a month.
   5m: ~60% wins, 16 a month, but more total profit on Silver.
 
-## 7. Caveats
+## 7. High win rate *and* 10+ trades a month
+
+Ten win-rate ideas were tested on the 5m and 15m charts (`research/fast_winrate.py`),
+each at 5 and 20 ticks of slippage. The rule was fixed before running: 10+ trades/month,
+win ≥ 70% at 5 ticks and ≥ 65% at 20 ticks, PF ≥ 1.5, holding in 2026. **Nothing
+passed outright.** The closest was **X2 on Silver 5m**: take a 5m signal only when the
+real **1h band** and the Day row agree; once +0.3R, lock the stop at +0.15R. That gave
+76% wins at 20 ticks, PF 3.0 and a −₹4.8 L max drawdown, but only 9.2 trades a month.
+
+Adding trend re-entries (`research/fast_winrate_followup.py`, **chosen after seeing
+the results**) lifts the count without hurting the win rate. **Q1 = X2 + re-enter
+on a close beyond the last 120 bars' high/low while all three still agree:**
+
+| 1 lot, Jan 2025 – Sep 2026 | Trades/month | Win % (5 / 20 ticks) | 2025 → 2026 win % (20 ticks) | PF | Net | Max DD | Months in profit |
+|---|---:|---|---|---:|---:|---:|---:|
+| Silver W8, 1h | 1.5 | 78% | 82% → 73% | 4.8 | ₹50.7 L | −₹8.0 L | 63% |
+| Silver U9, 5m | 16.2 | 64% / 57% | 51% → 66% | 2.3 | ₹96.2 L | −₹9.2 L | 71% |
+| **Silver Q1, 5m** | **16.2** | **77% / 76%** | **71% → 81%** | **2.6** | **₹74.3 L** | **−₹6.9 L** | **75%** |
+| Gold Q1, 5m | 16.4 | 72% / 59% | 53% → 67% | 1.6 | ₹43.7 L | −₹10.9 L | 60% |
+
+* **The re-entry length doesn't matter much.** 36, 60 and 120 bars all give 74–76%
+  wins on Silver, so the result isn't tied to one lucky setting.
+* **Silver Q1 had 10+ trades in 16 of 20 months.** The quietest month had 5.
+* **Silver Q1 gives up ₹22 L of U9's profit** for 12–20 points more win rate (at 20
+  ticks), a smaller drawdown and more months in profit. The worst month was −₹1.3 L.
+* **Gold still doesn't hold a high win rate on 5m with realistic fills.** For Gold,
+  stay on 1h W8 (82%, about 1.3 a month).
+* **On TradingView:** use the 5m chart. In the indicator or strategy, turn on "Only trade with
+  the 1h band", set the lock trigger to 0.3 and the locked stop to 0.15, and set
+  re-entry N to 120.
+
+## 8. Caveats
 
 * **Small sample:** V1 is 28–32 trades per metal. A win rate of 60% ± 9% is the
   honest range.
