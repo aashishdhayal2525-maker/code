@@ -3,3 +3,4 @@ __pycache__/
 results/console.txt
 research/out_*.csv
 research/improve_console.txt
+research/optimize_log.txt
