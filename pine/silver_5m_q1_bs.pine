@@ -1,0 +1,158 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0
+// Swastika Signal (reconstructed) - Silver 5m, presets Q1 and BS.
+// Same rules as the Python backtest (swastika/engine.py, research/silver_q1_vs_bs.py):
+//   * Buy/Sell = flip of the real Swastika band (SuperTrend ATR 20, x6) on the 5m chart.
+//   * Take a signal only if the Day band agrees, plus the 1h band (Q1) or the 4h band (BS).
+//     Day/1h/4h use only finished bars, so nothing repaints.
+//   * Exit on the opposite Buy/Sell, or at the locked stop: once the trade is +trigger R
+//     in profit, the stop moves to entry + lock R (R = entry to the outer band).
+//   * While flat and all filters still agree, re-enter on a close beyond the last 120
+//     bars' high (long) / low (short).
+// Orders fill at the next bar's open. For the closest match to the minute-level backtest,
+// keep "Bar Magnifier" on (strategy Properties; needs a Premium plan).
+//@version=5
+strategy("Swastika Silver 5m - Q1 / BS", shorttitle="SS Silver 5m", overlay=true,
+         default_qty_type=strategy.fixed, default_qty_value=1,
+         commission_type=strategy.commission.percent, commission_value=0.01, slippage=5,
+         use_bar_magnifier=true, max_labels_count=500)
+
+// ── Preset ───────────────────────────────────────────────────────────────
+preset = input.string("Q1", "Preset", options=["Q1", "BS", "Custom"],
+     tooltip="Q1: Day + 1h filter, lock +0.15R at +0.3R. More trades (~16/month), smaller drawdown.\nBS: Day + 4h filter, lock +0.2R at +0.4R. More profit (~13 trades/month); chosen on 2025 data only.\nCustom: use the settings below.")
+cDay  = input.bool(true,   "Day filter",      group="Custom preset")
+cH1   = input.bool(true,   "1h filter",       group="Custom preset")
+cH4   = input.bool(false,  "4h filter",       group="Custom preset")
+cTrig = input.float(0.3,   "Lock trigger (R)", step=0.05, group="Custom preset")
+cLock = input.float(0.15,  "Locked stop (R)",  step=0.05, group="Custom preset")
+cReN  = input.int(120,     "Re-entry lookback (bars, 0 = off)", minval=0, group="Custom preset")
+
+stLen  = input.int(20,    "Band ATR length",       group="Band (real Swastika settings)")
+innerM = input.float(5.0, "Inner line multiplier", step=0.1, group="Band (real Swastika settings)")
+outerM = input.float(6.0, "Outer line multiplier", step=0.1, group="Band (real Swastika settings)")
+showFiltered = input.bool(true, "Show filtered-out signals (grey)", group="Display")
+
+isQ1 = preset == "Q1"
+isBS = preset == "BS"
+useDay   = isQ1 or isBS ? true : cDay
+useH1    = isQ1 ? true  : isBS ? false : cH1
+useH4    = isQ1 ? false : isBS ? true  : cH4
+lockTrig = isQ1 ? 0.3   : isBS ? 0.4   : cTrig
+lockAt   = isQ1 ? 0.15  : isBS ? 0.2   : cLock
+reN      = isQ1 or isBS ? 120 : cReN
+
+// ── Band and signals ─────────────────────────────────────────────────────
+[stIn, dInTV]   = ta.supertrend(innerM, stLen)
+[stOut, dOutTV] = ta.supertrend(outerM, stLen)
+bandDir = -dOutTV                      // +1 up, -1 down
+buySig  = bandDir == 1  and bandDir[1] == -1
+sellSig = bandDir == -1 and bandDir[1] == 1
+
+// ── Higher-timeframe bands (finished bars only) ──────────────────────────
+dirExpr() =>
+    [_, d] = ta.supertrend(outerM, stLen)
+    -d
+dayDir = request.security(syminfo.tickerid, "D",   dirExpr()[1], lookahead=barmerge.lookahead_on)
+h1Dir  = request.security(syminfo.tickerid, "60",  dirExpr()[1], lookahead=barmerge.lookahead_on)
+h4Dir  = request.security(syminfo.tickerid, "240", dirExpr()[1], lookahead=barmerge.lookahead_on)
+
+allowed(side) =>
+    (not useDay or dayDir == side) and (not useH1 or h1Dir == side) and (not useH4 or h4Dir == side)
+
+goLong  = buySig  and allowed(1)
+goShort = sellSig and allowed(-1)
+
+// ── Trend re-entry ───────────────────────────────────────────────────────
+look = math.max(reN, 1)
+hiN  = ta.highest(high, look)[1]
+loN  = ta.lowest(low, look)[1]
+flat = strategy.position_size == 0
+reLong  = reN > 0 and flat and not buySig and not sellSig and bandDir == 1  and allowed(1)  and close > hiN
+reShort = reN > 0 and flat and not buySig and not sellSig and bandDir == -1 and allowed(-1) and close < loN
+
+// ── Orders ───────────────────────────────────────────────────────────────
+if buySig and strategy.position_size < 0 and not goLong
+    strategy.close("S", comment="Exit: Buy flip")
+if sellSig and strategy.position_size > 0 and not goShort
+    strategy.close("L", comment="Exit: Sell flip")
+if goLong or reLong
+    strategy.entry("L", strategy.long, comment=goLong ? "Buy" : "Re-entry Buy")
+if goShort or reShort
+    strategy.entry("S", strategy.short, comment=goShort ? "Sell" : "Re-entry Sell")
+
+// ── Profit lock ──────────────────────────────────────────────────────────
+var float entryPx = na
+var float riskPts = na
+var bool  locked  = false
+curDir = int(math.sign(strategy.position_size))
+justEntered = false
+if strategy.opentrades > 0
+    justEntered := strategy.opentrades.entry_bar_index(strategy.opentrades - 1) == bar_index
+if justEntered
+    entryPx := strategy.opentrades.entry_price(strategy.opentrades - 1)
+    riskPts := math.abs(entryPx - stOut[1])   // outer band on the bar the order was placed
+    locked  := false
+lockNow = false
+if curDir == 1 and not locked and high - entryPx >= lockTrig * riskPts
+    locked  := true
+    lockNow := true
+if curDir == -1 and not locked and entryPx - low >= lockTrig * riskPts
+    locked  := true
+    lockNow := true
+lockPx = entryPx + curDir * lockAt * riskPts
+if locked and curDir == 1
+    strategy.exit("lockL", from_entry="L", stop=lockPx, comment="Exit: locked profit")
+if locked and curDir == -1
+    strategy.exit("lockS", from_entry="S", stop=lockPx, comment="Exit: locked profit")
+
+// ── Drawing ──────────────────────────────────────────────────────────────
+pIn  = plot(stIn,  "Inner line (x5)", color=#2962ff, style=plot.style_stepline)
+pOut = plot(stOut, "Outer line (x6)", color=#ff1744, style=plot.style_stepline)
+fill(pIn, pOut, color=bandDir == 1 ? color.new(#2e7d32, 60) : color.new(#c62828, 60))
+plot(curDir != 0 and not locked ? entryPx + curDir * lockTrig * riskPts : na, "Lock trigger",
+     color=color.new(color.gray, 20), style=plot.style_linebr)
+plot(curDir != 0 and locked ? lockPx : na, "Locked stop", color=color.yellow, style=plot.style_linebr, linewidth=2)
+
+if goLong
+    label.new(bar_index, low, "Buy", style=label.style_label_up, color=#2e7d32, textcolor=color.white)
+if goShort
+    label.new(bar_index, high, "Sell", style=label.style_label_down, color=#e53935, textcolor=color.white)
+if showFiltered and buySig and not goLong
+    label.new(bar_index, low, "Buy (filtered)", style=label.style_label_up, color=color.new(color.gray, 50), textcolor=color.white, size=size.small)
+if showFiltered and sellSig and not goShort
+    label.new(bar_index, high, "Sell (filtered)", style=label.style_label_down, color=color.new(color.gray, 50), textcolor=color.white, size=size.small)
+if reLong
+    label.new(bar_index, low, "↻ Buy", style=label.style_label_up, color=color.new(#2e7d32, 30), textcolor=color.white, size=size.small)
+if reShort
+    label.new(bar_index, high, "↻ Sell", style=label.style_label_down, color=color.new(#e53935, 30), textcolor=color.white, size=size.small)
+
+// ── Alerts (create one alert on this strategy with "alert() function calls only") ──
+if goLong or reLong
+    alert("SS Silver " + preset + ": BUY " + syminfo.ticker + " at next bar open. Band stop " + str.tostring(stOut, format.mintick), alert.freq_once_per_bar_close)
+if goShort or reShort
+    alert("SS Silver " + preset + ": SELL " + syminfo.ticker + " at next bar open. Band stop " + str.tostring(stOut, format.mintick), alert.freq_once_per_bar_close)
+if lockNow
+    alert("SS Silver " + preset + ": move stop to " + str.tostring(lockPx, format.mintick) + " (profit locked)", alert.freq_once_per_bar_close)
+if (buySig and curDir == -1 and not goLong) or (sellSig and curDir == 1 and not goShort)
+    alert("SS Silver " + preset + ": EXIT on opposite signal", alert.freq_once_per_bar_close)
+
+// ── Status panel ─────────────────────────────────────────────────────────
+dirTxt(d) => d == 1 ? "UP" : d == -1 ? "DOWN" : "-"
+dirCol(d) => d == 1 ? color.new(#26a69a, 20) : d == -1 ? color.new(#ef5350, 20) : color.gray
+var table tb = table.new(position.top_right, 2, 8, border_width=1)
+if barstate.islast
+    table.cell(tb, 0, 0, "Preset", text_color=color.white, bgcolor=#1e222d, text_size=size.small)
+    table.cell(tb, 1, 0, preset + (timeframe.period != "5" ? "  (use 5m!)" : ""), text_color=color.white, bgcolor=#1e222d, text_size=size.small)
+    table.cell(tb, 0, 1, "5m band", text_size=size.small, bgcolor=color.white)
+    table.cell(tb, 1, 1, dirTxt(bandDir), bgcolor=dirCol(bandDir), text_color=color.white, text_size=size.small)
+    table.cell(tb, 0, 2, "Day" + (useDay ? "" : " (off)"), text_size=size.small, bgcolor=color.white)
+    table.cell(tb, 1, 2, dirTxt(dayDir), bgcolor=dirCol(dayDir), text_color=color.white, text_size=size.small)
+    table.cell(tb, 0, 3, "1h" + (useH1 ? "" : " (off)"), text_size=size.small, bgcolor=color.white)
+    table.cell(tb, 1, 3, dirTxt(h1Dir), bgcolor=dirCol(h1Dir), text_color=color.white, text_size=size.small)
+    table.cell(tb, 0, 4, "4h" + (useH4 ? "" : " (off)"), text_size=size.small, bgcolor=color.white)
+    table.cell(tb, 1, 4, dirTxt(h4Dir), bgcolor=dirCol(h4Dir), text_color=color.white, text_size=size.small)
+    table.cell(tb, 0, 5, "Position", text_size=size.small, bgcolor=color.white)
+    table.cell(tb, 1, 5, curDir == 1 ? "LONG" : curDir == -1 ? "SHORT" : "flat", bgcolor=dirCol(curDir), text_color=color.white, text_size=size.small)
+    table.cell(tb, 0, 6, "Lock", text_size=size.small, bgcolor=color.white)
+    table.cell(tb, 1, 6, str.tostring(lockAt) + "R at " + str.tostring(lockTrig) + "R" + (curDir != 0 and locked ? " (ON)" : ""), text_size=size.small, bgcolor=color.white)
+    table.cell(tb, 0, 7, "Re-entry", text_size=size.small, bgcolor=color.white)
+    table.cell(tb, 1, 7, reN > 0 ? str.tostring(reN) + " bars" : "off", text_size=size.small, bgcolor=color.white)

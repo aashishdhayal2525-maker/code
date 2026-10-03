@@ -6,6 +6,7 @@ built from how it draws on the chart, plus a backtest on MCX Gold and Silver.
 | Path | What |
 |---|---|
 | `pine/swastika_signal_clone.pine` | TradingView indicator: band + Buy/Sell, cyan trail, 200 EMA, Magical labels, timeframe table, alerts |
+| `pine/silver_5m_q1_bs.pine` | **Ready-to-use Silver 5m strategy with presets Q1 and BS** (alerts, lock line, status panel) |
 | `pine/swastika_signal_strategy.pine` | Same logic as a `strategy()` for TradingView's Strategy Tester |
 | `swastika/` | Python version of the indicator (`indicator.py`), data loading/back-adjust (`data.py`), backtester (`backtest.py`) |
 | `run_backtest.py` | Runs everything and writes `results/` |

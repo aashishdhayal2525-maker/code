@@ -1,0 +1,5 @@
+preset,mode,trades,per_month,win_%,pf,net_L,max_dd_L
+Q1,minute fills (Bar Magnifier on),340,16.2,76.5,2.65,74.3,-6.9
+Q1,5m bar fills (Bar Magnifier off),335,16.0,75.5,2.66,74.2,-6.9
+BS,minute fills (Bar Magnifier on),280,13.3,75.4,2.53,84.4,-9.4
+BS,5m bar fills (Bar Magnifier off),279,13.3,74.9,2.53,84.0,-9.7
