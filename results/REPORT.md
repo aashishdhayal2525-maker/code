@@ -266,7 +266,44 @@ on a close beyond the last 120 bars' high/low while all three still agree:**
   the 1h band", set the lock trigger to 0.3 and the locked stop to 0.15, and set
   re-entry N to 120.
 
-## 8. Caveats
+## 8. Why Silver works better than Gold
+
+`research/silver_vs_gold.py` compares how the two markets move:
+
+| | Silver 5m | Gold 5m | Silver 1h | Gold 1h |
+|---|---:|---:|---:|---:|
+| Price change, Jan 2025 → Sep 2026 | +170% | +97% | | |
+| Typical bar range (ATR, % of price) | 0.145% | 0.081% | 0.57% | 0.33% |
+| Trend efficiency (1 = straight line) | 0.086 | 0.086 | 0.29 | 0.30 |
+| Band flips that reverse within 10 bars | 4.6% | 3.3% | 1.5% | 0% |
+| Risk per trade R (% of price) | 0.96% | 0.56% | 3.8% | 2.3% |
+| **Costs at 20 ticks, as % of R** | **4.7%** | **9.4%** | 1.0% | 2.3% |
+
+* **It isn't that Silver trends more cleanly.** Trend efficiency and whipsaws are the
+  same for both metals.
+* **Silver moves about 1.75× more in % terms.** Costs are a % of notional plus fixed
+  ticks, so on Gold they eat **twice the share of each trade**. On 5m that is what kills
+  Gold's small locked wins: the +0.15R lock is mostly eaten by fills.
+* **Silver had the bigger bull run** (+170% vs +97%), and longs made most of the money.
+* **On 1h, costs barely matter.** There Gold W8 is as good as Silver (82% wins, ₹55.6 L
+  vs ₹50.7 L).
+* **Per rupee, Silver is better still.** One Silver lot is about ₹69 L of metal (30 kg ×
+  ₹2.3 L), one Gold lot about ₹1.5 Cr (1 kg). Silver Q1's ₹74 L on half the exposure is
+  roughly 3.5× Gold's return per rupee.
+
+**A bigger lock for Gold** (`research/gold_lock.py`, at 20 ticks; chosen after the
+diagnosis, so treat it as tuned):
+
+| Gold 5m, 1h filter + re-entry 120 | Trades/month | Win % (2025 → 2026) | PF (2025 → 2026) | Net | Max DD |
+|---|---:|---|---|---:|---:|
+| Q1 lock 0.15R at 0.3R | 16.4 | 53% → 67% | 1.83 → 1.24 | ₹33.2 L | −₹13.5 L |
+| **Q2 lock 0.2R at 0.4R** | **13.8** | **66% → 71%** | **2.37 → 1.45** | **₹52.3 L** | **−₹10.5 L** |
+| lock 0.25R at 0.5R | 13.3 | 67% → 67% | 2.15 → 1.41 | ₹50.0 L | −₹12.8 L |
+
+Q2 lifts Gold to about 69% wins at about 14 trades a month, but it is still well behind
+Silver (76%, PF 2.6). For Silver, the smaller Q1 lock remains the best.
+
+## 9. Caveats
 
 * **Small sample:** V1 is 28–32 trades per metal. A win rate of 60% ± 9% is the
   honest range.

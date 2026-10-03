@@ -31,9 +31,11 @@ STRATS = [  # code, name, rules
     ("U9", "W8 on 5m chart", replace(BASE, breakeven_r=0.5, lock_r=0.1)),
     ("Q1", "5m: 1h filter, lock 0.15R@0.3R, re-entry 120", replace(BASE, require=("60m",), breakeven_r=0.3, lock_r=0.15,
                                                                    reentry_breakout=120)),
+    ("Q2", "Q1 with a bigger lock 0.2R@0.4R (Gold setting)", replace(BASE, require=("60m",), breakeven_r=0.4, lock_r=0.2,
+                                                                       reentry_breakout=120)),
 ]
 FAST = replace(Params(), st_fast_mult=3.0, st_slow_mult=4.0)
-SETUP = {"T6": (60, FAST), "T7": (30, Params()), "U1": (15, Params()), "U9": (5, Params()), "Q1": (5, Params())}  # code -> (bar minutes, band params); default 1h, real band
+SETUP = {"T6": (60, FAST), "T7": (30, Params()), "U1": (15, Params()), "U9": (5, Params()), "Q1": (5, Params()), "Q2": (5, Params())}  # code -> (bar minutes, band params); default 1h, real band
 SYMS = list(CONTRACTS)
 MONTHS = pd.date_range("2025-01-01", "2026-09-01", freq="MS")
 
@@ -270,6 +272,8 @@ notes = [
            "while flat and all three still agree, re-enter on a close beyond the last 120 bars' (10 h) high/low. "
            "Silver: ~16 trades/month, ~76% wins, held at 20-tick slippage. Gold: win rate falls to ~59% at 20 ticks. "
            "The re-entry part was chosen after seeing results (research/fast_winrate_followup.py)."),
+    ("Q2", "Q1 with the profit lock at +0.2R once +0.4R. Meant for Gold: its costs are ~2x Silver's as a share of R on 5m, "
+           "so the smaller Q1 lock is eaten by fills (research/silver_vs_gold.py, research/gold_lock.py). Chosen after seeing results."),
     ("Execution", "Signal on 1h close, fill at next bar's open. Stops fill at the stop price, or the minute's open if it gapped."),
     ("Costs", "Already inside 'Net points / lot': 0.02% of notional per round trip + 5 ticks slippage per side, "
               "plus one extra round trip for every roll a position is held through."),

@@ -1,0 +1,5 @@
+metal,chart,price_change_%,ATR_%_of_price,trend_efficiency,signals_per_month,median_leg_bars,whipsaw_%,R_%_of_price,cost_as_%_of_R
+SILVER,5m,170,0.145,0.086,34.1,79,4.6,0.959,4.7
+SILVER,60m,170,0.568,0.293,3.3,81,1.5,3.757,1.0
+GOLD,5m,97,0.081,0.086,34.3,75,3.3,0.561,9.4
+GOLD,60m,97,0.332,0.297,2.8,76,0.0,2.318,2.3
