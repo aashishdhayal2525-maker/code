@@ -21,6 +21,8 @@ useLock   = input.bool(true,  "Lock profit once the trade is ahead", group="Win-
      tooltip="Once price moves +0.5R in your favour (R = entry to outer band), move the stop to +0.1R. Backtest: win rate ~60% -> ~80%, profit -12% to -22% (more in Gold 2026).")
 lockTrig  = input.float(0.5, "Lock trigger (R)", step=0.1,  group="Win-rate options")
 lockAt    = input.float(0.1, "Locked stop (R)",  step=0.05, group="Win-rate options")
+reN       = input.int(0, "Re-enter the trend on an N-bar breakout (0 = off)", minval=0, group="More trades",
+     tooltip="While flat and the band and Day row still agree, re-enter when a bar closes beyond the previous N bars' high (long) / low (short). Backtest with N = 20 on the 30m chart: Silver 3.5 trades/month, 71% wins; Gold weaker in 2026.")
 confirm1  = input.bool(false, "Wait 1 bar for follow-through", group="Win-rate options",
      tooltip="Enter one bar later, only if the band held and that bar closed beyond the signal bar. Backtest: win rate ~90%, half the trades, ~40% less profit. Chosen after seeing results; small sample.")
 
@@ -55,7 +57,16 @@ dayDir = request.security(syminfo.tickerid, "D", -dSlowTV[1], lookahead=barmerge
 goLong  = confirm1 ? (buySig[1]  and bandDir == 1  and close > close[1] and dayDir[1] == 1)  : (buySig  and dayDir == 1)
 goShort = confirm1 ? (sellSig[1] and bandDir == -1 and close < close[1] and dayDir[1] == -1) : (sellSig and dayDir == -1)
 
+hiN = ta.highest(high, math.max(reN, 1))[1]
+loN = ta.lowest(low, math.max(reN, 1))[1]
+reLong  = reN > 0 and strategy.position_size == 0 and not goLong and not goShort and bandDir == 1  and dayDir == 1  and close > hiN
+reShort = reN > 0 and strategy.position_size == 0 and not goLong and not goShort and bandDir == -1 and dayDir == -1 and close < loN
+
 if mode == "Day filter"
+    if reLong
+        strategy.entry("L", strategy.long, comment="re-entry")
+    if reShort
+        strategy.entry("S", strategy.short, comment="re-entry")
     if buySig
         strategy.close("S")
     if sellSig

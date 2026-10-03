@@ -15,23 +15,36 @@ from openpyxl.utils import get_column_letter as L
 
 from research.winrate import BASE, load
 from swastika.backtest import CONTRACTS
+from swastika.data import load_minutes, resample
 from swastika.engine import Rules, simulate
+from swastika.indicator import Params, compute, mtf_directions
+import glob
 
 STRATS = [  # code, name, rules
     ("V0", "Real Buy/Sell, always in", Rules()),
     ("V1", "Day filter", BASE),
     ("W8", "Day filter + profit lock", replace(BASE, breakeven_r=0.5, lock_r=0.1)),
     ("W8C", "Day + lock + 1-bar confirm", replace(BASE, breakeven_r=0.5, lock_r=0.1, confirm_bars=1)),
+    ("T6", "W8, faster band x3/x4 (1h)", replace(BASE, breakeven_r=0.5, lock_r=0.1)),
+    ("T7", "W8 on 30m + trend re-entry", replace(BASE, breakeven_r=0.5, lock_r=0.1, reentry_breakout=20)),
 ]
+FAST = replace(Params(), st_fast_mult=3.0, st_slow_mult=4.0)
+SETUP = {"T6": (60, FAST), "T7": (30, Params())}  # code -> (bar minutes, band params); default 1h, real band
 SYMS = list(CONTRACTS)
 MONTHS = pd.date_range("2025-01-01", "2026-09-01", freq="MS")
 
 # ── simulate ──────────────────────────────────────────────────────────────
 rows = []
 for sym, con in CONTRACTS.items():
-    m, bars, t = load(sym)
+    m = load_minutes(sorted(glob.glob(f"data/{sym}_nearmonth_1min_*.csv")))
+    cache = {}
     for code, _, rules in STRATS:
-        tr = simulate(m, bars, rules, con, day_dir=t["Day"].to_numpy())
+        tf, prm = SETUP.get(code, (60, Params()))
+        if (tf, repr(prm)) not in cache:
+            bars = compute(resample(m, tf), prm)
+            cache[(tf, repr(prm))] = (bars, mtf_directions(m, bars, {"Day": None}, prm)["Day"].to_numpy())
+        bars, day = cache[(tf, repr(prm))]
+        tr = simulate(m, bars, rules, con, day_dir=day)
         tr["symbol"], tr["code"] = sym, code
         tr["net_pts"] = tr["net_inr"] / con.multiplier
         rows.append(tr)
@@ -191,7 +204,7 @@ H0 = 9
 ws_sum.cell(H0 - 1, 1, "Results by strategy (all formulas)").font = bold
 sh = ["Metal", "Strategy", "Description", "Trades", "Wins", "Win %", "Net P&L (₹)", "2025 net (₹)",
       "2026 net (₹)", "Avg win (₹)", "Avg loss (₹)", "Profit factor", "Max drawdown (₹)",
-      "Profitable months %", "Best month (₹)", "Worst month (₹)"]
+      "Profitable months %", "Best month (₹)", "Worst month (₹)", "Trades / month"]
 for j, h in enumerate(sh, 1):
     style(ws_sum.cell(H0, j, h), white_b, fill=hdr_fill, align=center)
 ws_sum.row_dimensions[H0].height = 32
@@ -214,16 +227,17 @@ for sym in SYMS:
                  f"=_xlfn.MINIFS({R('P')},{crit})",
                  f'=IFERROR(COUNTIF({sheet}!{mc["p"]}${FIRST}:{mc["p"]}${LASTM},">0")/COUNTIF({sheet}!{mc["t"]}${FIRST}:{mc["t"]}${LASTM},">0"),"")',
                  f"=MAX({sheet}!{mc['p']}${FIRST}:{mc['p']}${LASTM})",
-                 f"=MIN({sheet}!{mc['p']}${FIRST}:{mc['p']}${LASTM})"]
-        fmts = [None, None, None, CNT, CNT, PCT, INR, INR, INR, INR, INR, "0.00", INR, PCT, INR, INR]
+                 f"=MIN({sheet}!{mc['p']}${FIRST}:{mc['p']}${LASTM})",
+                 f"=D{i}/COUNT({sheet}!$A${FIRST}:$A${LASTM})"]
+        fmts = [None, None, None, CNT, CNT, PCT, INR, INR, INR, INR, INR, "0.00", INR, PCT, INR, INR, "0.0"]
         for j, (v, fm) in enumerate(zip(cells, fmts), 1):
             style(ws_sum.cell(i, j, v), bold if j <= 2 else base, fm,
                   sub_fill if code in ("W8",) else None)
         i += 1
 ws_sum.cell(i + 1, 1, "Highlighted rows = recommended setup (Day filter + profit lock). "
-                      "W8C was chosen after seeing results and rests on 16-18 trades.").font = \
+                      "W8C was chosen after seeing results and rests on 16-18 trades. T6/T7 trade more often at a lower win rate.").font = \
     Font(name=F, size=9, italic=True, color="595959")
-for j, w in enumerate([10, 9, 26, 8, 7, 8, 14, 13, 13, 12, 12, 10, 15, 11, 13, 13], 1):
+for j, w in enumerate([10, 9, 26, 8, 7, 8, 14, 13, 13, 12, 12, 10, 15, 11, 13, 13, 9], 1):
     ws_sum.column_dimensions[L(j)].width = w
 ws_sum.column_dimensions["A"].width = 28
 ws_sum.freeze_panes = f"D{H0 + 1}"
@@ -241,6 +255,9 @@ notes = [
            "R = distance from entry to the outer band at entry. Checked minute by minute."),
     ("W8C", "W8 + wait one bar after the signal and enter only if the band held and the bar closed beyond the signal bar. "
             "Chosen after seeing results; small sample (16-18 trades per metal)."),
+    ("T6", "W8 with a faster band (inner x3 / outer x4, ATR 20) on 1h. About twice the trades; no longer matches the real indicator's settings."),
+    ("T7", "W8 on the 30m chart (real band settings) + trend re-entry: while flat and the band and Day row still agree, "
+           "re-enter when a bar closes beyond the previous 20 bars' high (long) or low (short)."),
     ("Execution", "Signal on 1h close, fill at next bar's open. Stops fill at the stop price, or the minute's open if it gapped."),
     ("Costs", "Already inside 'Net points / lot': 0.02% of notional per round trip + 5 ticks slippage per side, "
               "plus one extra round trip for every roll a position is held through."),

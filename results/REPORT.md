@@ -154,7 +154,49 @@ Now they end as small wins.
   *after* seeing the results and rests on 16–18 trades. Treat it as promising, not
   proven.
 
-## 5. Caveats
+## 5. Getting more trades
+
+W8 trades only about 1.3–1.5 times a month per metal. The band flips about 3 times a
+month, and the Day filter skips half of those. Seven ideas were tested
+(`research/more_trades.py`). The pass rule was fixed before running: **on 2025, at
+least 1.5× W8's trades on both metals, win rate ≥ 65%, PF ≥ 2**, then check 2026.
+
+| Variant | Trades/month (S / G) | Silver win %, PF (2025 → 2026) | Gold win %, PF (2025 → 2026) | 2025 rule |
+|---|---|---|---|---|
+| W8 1h (current) | 1.5 / 1.3 | 82%, 11.2 → 73%, 3.2 | 88%, 24.8 → 73%, 1.9 | baseline |
+| T1 W8 on 15m | 6.1 / 5.9 | 60%, 2.7 → 66%, 1.7 | 62%, 1.7 → 61%, 1.6 | fail (win %) |
+| T2 W8 on 30m | 2.9 / 3.0 | 71%, 4.6 → 60%, 2.3 | 73%, 3.5 → 58%, 1.1 | pass |
+| T3 W8 on 2h | 0.9 / 0.9 | fewer trades | fewer trades | fail |
+| T4/T5 1h + trend re-entry | 2.0 / 1.9 | 80–86% → 68–74% | 77–85% → 61–65% | fail (count) |
+| **T6 1h, faster band ×3/×4** | **2.6 / 2.7** | **68%, 5.2 → 63%, 2.2** | **72%, 2.0 → 68%, 1.6** | **pass** |
+| **T7 30m + re-entry (20-bar)** | **3.5 / 3.6** | **76%, 4.7 → 66%, 2.4** | **73%, 3.4 → 60%, 1.2** | **pass** |
+
+Full period, 1 lot:
+
+| | Trades | Per month | Win % | Net | PF | Max DD |
+|---|---:|---:|---:|---:|---:|---:|
+| Silver W8 | 32 | 1.5 | 78% | ₹50.7 L | 4.8 | −₹8.0 L |
+| Silver T6 | 55 | 2.6 | 66% | ₹52.4 L | 2.9 | −₹11.3 L |
+| **Silver T7** | **73** | **3.5** | **71%** | **₹66.8 L** | **3.0** | −₹12.0 L |
+| Gold W8 | 28 | 1.3 | 82% | ₹55.6 L | 4.7 | −₹7.6 L |
+| **Gold T6** | **57** | **2.7** | **70%** | ₹31.9 L | 1.8 | −₹12.7 L |
+| Gold T7 | 75 | 3.6 | 67% | ₹41.4 L | 1.6 | −₹21.5 L |
+
+**What it means:**
+* **Every way of adding trades lowers the win rate and profit factor.** The extra
+  trades are lower quality than the ones W8 already takes.
+* **Silver: T7** (real band on the 30m chart + trend re-entry) roughly doubles the
+  trades, keeps ~71% wins, and made the most money of any variant. It held in 2026
+  (66%, PF 2.4).
+* **Gold: T6** (faster band on 1h) doubles the trades at ~70% wins, but profit is
+  lower than W8 (₹31.9 L vs ₹55.6 L). Gold's T7 fell to PF 1.2 in 2026 with a
+  −₹21.5 L drawdown. Avoid it.
+* **The simplest way to get more trades is to trade both metals.** W8 on Silver +
+  Gold is about 2.8 trades a month together; T7 Silver + T6 Gold is about 6.
+* **T6 no longer matches the real indicator.** Its band (×3/×4) differs from the real
+  ×5/×6 settings. T7 keeps the real settings and just runs them on a 30m chart.
+
+## 6. Caveats
 
 * **Small sample:** V1 is 28–32 trades per metal. A win rate of 60% ± 9% is the
   honest range.

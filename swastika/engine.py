@@ -35,6 +35,8 @@ class Rules:
     confirm_bars: int = 0            # wait k bars; enter only if the band held and price followed through
     pullback_atr: float | None = None    # instead of buying the open, wait for a dip of k * ATR...
     pullback_bars: int = 10              # ...for at most this many bars, else skip the signal
+    reentry_breakout: int | None = None  # while flat and band + filters still agree, re-enter
+                                         # when a bar closes beyond the last N bars' high/low
 
 
 @dataclass
@@ -93,6 +95,7 @@ def simulate(minutes: pd.DataFrame, bars: pd.DataFrame, rules: Rules, contract: 
         trades.append({
             "side": "LONG" if st["pos"] == 1 else "SHORT", "entry_time": st["entry_t"], "exit_time": t,
             "entry": st["entry"], "qty": st["qty"], "risk_pts": st["r_pts"], "reason": reason,
+            "kind": st.get("kind", "signal"),
             "gross_inr": st["realized"] * mult_unit, "net_inr": net_pts * mult_unit,
             "r_multiple": net_pts / (st["r_pts"] * st["qty"]) if st["r_pts"] > 0 else np.nan,
         })
@@ -118,7 +121,7 @@ def simulate(minutes: pd.DataFrame, bars: pd.DataFrame, rules: Rules, contract: 
             return False
         return not np.isnan(a[k])
 
-    def enter(px, side, k, t):
+    def enter(px, side, k, t, kind="signal"):
         stop = px - side * rules.stop_atr * a[k] if rules.stop_atr else band[k]
         r_pts = abs(px - stop)
         if r_pts <= 0 or (side == 1 and stop >= px) or (side == -1 and stop <= px):
@@ -129,7 +132,7 @@ def simulate(minutes: pd.DataFrame, bars: pd.DataFrame, rules: Rules, contract: 
             q = float(min(sizing.max_units, np.floor(sizing.risk_inr / (r_pts * sizing.unit_mult))))
         if q < 1:
             return
-        st.update(pos=side, qty=q, open_qty=q, entry=px, stop=stop, r_pts=r_pts,
+        st.update(pos=side, qty=q, open_qty=q, entry=px, stop=stop, r_pts=r_pts, kind=kind,
                   tp=px + side * rules.take_profit_r * r_pts if rules.take_profit_r else None,
                   realized=0.0, rolls=0, entry_t=t, tp_done=False, be_done=False,
                   cost_pts=q * (costs.cost_pct * raw[k] + 2 * slip) / 2)
@@ -166,6 +169,13 @@ def simulate(minutes: pd.DataFrame, bars: pd.DataFrame, rules: Rules, contract: 
                 pend = None
             if pend is not None and pend["limit"] is not None and s > pend["expiry"]:
                 pend = None
+            # Trend re-entry: flat, no signal waiting, band still on one side.
+            nb = rules.reentry_breakout
+            if nb and st["pos"] == 0 and pend is None and s >= nb and band_dir[s] != 0:
+                side = int(band_dir[s])
+                brk = c[s] > h[s - nb:s].max() if side == 1 else c[s] < l[s - nb:s].min()
+                if brk and allowed(side, s):
+                    enter(mo[i], side, s, mt[i], kind="re-entry")
         # Pullback limit order, filled intrabar.
         if pend is not None and st["pos"] == 0 and pend["limit"] is not None:
             lim, side = pend["limit"], pend["side"]
