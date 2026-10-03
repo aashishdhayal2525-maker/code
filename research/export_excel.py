@@ -27,9 +27,11 @@ STRATS = [  # code, name, rules
     ("W8C", "Day + lock + 1-bar confirm", replace(BASE, breakeven_r=0.5, lock_r=0.1, confirm_bars=1)),
     ("T6", "W8, faster band x3/x4 (1h)", replace(BASE, breakeven_r=0.5, lock_r=0.1)),
     ("T7", "W8 on 30m + trend re-entry", replace(BASE, breakeven_r=0.5, lock_r=0.1, reentry_breakout=20)),
+    ("U1", "W8 on 15m chart", replace(BASE, breakeven_r=0.5, lock_r=0.1)),
+    ("U9", "W8 on 5m chart", replace(BASE, breakeven_r=0.5, lock_r=0.1)),
 ]
 FAST = replace(Params(), st_fast_mult=3.0, st_slow_mult=4.0)
-SETUP = {"T6": (60, FAST), "T7": (30, Params())}  # code -> (bar minutes, band params); default 1h, real band
+SETUP = {"T6": (60, FAST), "T7": (30, Params()), "U1": (15, Params()), "U9": (5, Params())}  # code -> (bar minutes, band params); default 1h, real band
 SYMS = list(CONTRACTS)
 MONTHS = pd.date_range("2025-01-01", "2026-09-01", freq="MS")
 
@@ -235,7 +237,7 @@ for sym in SYMS:
                   sub_fill if code in ("W8",) else None)
         i += 1
 ws_sum.cell(i + 1, 1, "Highlighted rows = recommended setup (Day filter + profit lock). "
-                      "W8C was chosen after seeing results and rests on 16-18 trades. T6/T7 trade more often at a lower win rate.").font = \
+                      "W8C was chosen after seeing results and rests on 16-18 trades. T6/T7/U1/U9 trade more often at a lower win rate. For 10+ trades a month: U9 on Silver, or U1 on both metals.").font = \
     Font(name=F, size=9, italic=True, color="595959")
 for j, w in enumerate([10, 9, 26, 8, 7, 8, 14, 13, 13, 12, 12, 10, 15, 11, 13, 13, 9], 1):
     ws_sum.column_dimensions[L(j)].width = w
@@ -258,6 +260,9 @@ notes = [
     ("T6", "W8 with a faster band (inner x3 / outer x4, ATR 20) on 1h. About twice the trades; no longer matches the real indicator's settings."),
     ("T7", "W8 on the 30m chart (real band settings) + trend re-entry: while flat and the band and Day row still agree, "
            "re-enter when a bar closes beyond the previous 20 bars' high (long) or low (short)."),
+    ("U1", "W8 rules (real band settings, Day filter, profit lock) on the 15m chart. ~6 trades/month per metal."),
+    ("U9", "W8 rules on the 5m chart. ~16 trades/month per metal. Silver held in both years; Gold fell to PF 1.1 in 2026 "
+           "and is fragile to slippage (research/ten_trades_costs.csv)."),
     ("Execution", "Signal on 1h close, fill at next bar's open. Stops fill at the stop price, or the minute's open if it gapped."),
     ("Costs", "Already inside 'Net points / lot': 0.02% of notional per round trip + 5 ticks slippage per side, "
               "plus one extra round trip for every roll a position is held through."),

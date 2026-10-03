@@ -196,7 +196,46 @@ Full period, 1 lot:
 * **T6 no longer matches the real indicator.** Its band (×3/×4) differs from the real
   ×5/×6 settings. T7 keeps the real settings and just runs them on a 30m chart.
 
-## 6. Caveats
+## 6. Ten or more trades a month
+
+Ten more variants were tested (`research/ten_trades.py`), all keeping the Day filter
+and profit lock. The pass rule was fixed before running, **per metal on 2025:
+≥ 10 trades/month, win ≥ 55%, PF ≥ 1.5; then 2026 must keep PF ≥ 1.3.** Slower
+setups (15m/30m with faster bands, 1h ×2/×3, re-entries) topped out at 5–9 trades a
+month, and several lost money in 2026. Only the 5-minute chart reaches 10+ for one
+metal.
+
+| 1 lot, Jan 2025 – Sep 2026 | Trades/month | Win % | Net | PF (2025 / 2026) | Max DD | Months in profit |
+|---|---:|---:|---:|---|---:|---:|
+| **Silver, 5m chart (U9)** | **16.2** | **64%** | **₹96.2 L** | **2.15 / 2.41** | −₹9.2 L | 71% |
+| Gold, 5m chart (U9) | 16.3 | 58% | ₹42.6 L | 1.93 / **1.14** | −₹25.1 L | 71% |
+| Silver, 15m chart (U1) | 6.1 | 63% | ₹49.2 L | 2.70 / 1.72 | −₹8.4 L | 60% |
+| Gold, 15m chart (U1) | 5.9 | 62% | ₹41.6 L | 1.71 / 1.61 | −₹17.8 L | 55% |
+
+**Slippage stress test** (`research/ten_trades_costs.csv`, ticks per side; 5 is the base case):
+
+| | 5 ticks | 10 | 20 | 40 |
+|---|---|---|---|---|
+| Silver 5m: win % / PF | 64% / 2.34 | 64% / 2.32 | 57% / 2.27 | 50% / 2.19 |
+| Gold 5m: win % / PF | 58% / 1.38 | 54% / 1.35 | 44% / 1.28 | 33% / 1.15 |
+| Gold 15m: win % / PF | 62% / 1.65 | 62% / 1.63 | 58% / 1.58 | 49% / 1.48 |
+
+**What it means:**
+* **10+ trades a month on one metal: Silver on the 5m chart.** It had 12–20
+  trades in every month from Feb 2025 (Jan 2025 is indicator warm-up), with PF above
+  2 in both years. Profit holds up under bad fills. The win rate doesn't: on 5m the
+  locked +0.1R is only a few hundred rupees, so bad fills turn those small wins into
+  small losses. Expect **57–64%**, not 78%.
+* **January 2026 alone made ₹35 L of Silver 5m's ₹96 L.** The rest of the period made
+  ₹61 L.
+* **Gold on 5m fails.** PF fell to 1.14 in 2026 and the win rate collapses with
+  realistic slippage. Use Gold on 15m (about 6 a month, robust to slippage) or 1h.
+* **Trading both metals on 15m gives about 12 a month together**, at ~62% wins and
+  PF 1.6–1.9, holding in both years.
+* **The price of more trades is win rate.** 1h W8: ~80% wins, 1.4 trades a month.
+  5m: ~60% wins, 16 a month, but more total profit on Silver.
+
+## 7. Caveats
 
 * **Small sample:** V1 is 28–32 trades per metal. A win rate of 60% ± 9% is the
   honest range.
