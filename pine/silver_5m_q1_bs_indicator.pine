@@ -30,7 +30,7 @@ outerM = input.float(6.0, "Outer line multiplier", step=0.1, group="Band (real S
 showFiltered = input.bool(true, "Show filtered-out signals (grey)", group="Display")
 showResults  = input.bool(true, "Show each trade's result", group="Display")
 showStats    = input.bool(true, "Show scorecard", group="Display")
-rsPerPoint   = input.float(30, "₹ per point per lot", group="Scorecard",
+rsPerPoint   = input.float(30, "₹ per point per lot", minval=0, group="Scorecard",
      tooltip="MCX SILVER: 30 (30 kg lot, quoted per kg). SILVERM 5 kg: 5. SILVERMIC 1 kg: 1.")
 costPct      = input.float(0.02, "Round-trip costs (% of price)", step=0.005, group="Scorecard")
 slipTicks    = input.int(5, "Slippage (ticks per side)", minval=0, group="Scorecard")
@@ -216,5 +216,6 @@ if barstate.islast
         cell(10, "Win rate", nTrades > 0 ? str.tostring(100.0 * nWins / nTrades, "#.0") + "%" : "-", color.white)
         cell(11, "Profit factor", sumLoss > 0 ? str.tostring(sumWin / sumLoss, "#.00") : "-", color.white)
         cell(12, "Net points (after costs)", str.tostring(math.round(net)), net >= 0 ? color.new(#26a69a, 20) : color.new(#ef5350, 20))
-        cell(13, "Net ₹ per lot", str.tostring(math.round(net * rsPerPoint)), net >= 0 ? color.new(#26a69a, 20) : color.new(#ef5350, 20))
+        cell(13, "Net ₹ per lot", rsPerPoint > 0 ? "₹" + str.tostring(net * rsPerPoint, "#,##0") : "set '₹ per point per lot' (30 for SILVER)",
+             rsPerPoint > 0 ? (net >= 0 ? color.new(#26a69a, 20) : color.new(#ef5350, 20)) : color.white)
         cell(14, "Since", na(firstTime) ? "-" : str.format_time(firstTime, "dd MMM yyyy", "Asia/Kolkata"), color.white)

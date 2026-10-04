@@ -378,7 +378,31 @@ With normal fills (5 ticks, as in the workbook): Silver BS 75.4% / ₹84.4 L; Go
 | Exit when the 1h band flips | off | off |
 | Day/1h/4h filter band | 20 / 6 (default) | 20 / 6 (default) |
 
-## 10. Caveats
+## 10. Live check: TradingView indicator, 13 Jul – early Oct 2026
+
+The user ran `pine/silver_5m_q1_bs_indicator.pine` (BS preset) on TradingView:
+
+| BS since 13 Jul 2026 | Trades | Win % | PF | Net points |
+|---|---:|---:|---:|---:|
+| TradingView indicator (to early Oct) | 48 | 68.8% | 1.01 | +307 |
+| Backtest, same rules (to 23 Sep, end of data) | 38 | 73.7% | 1.04 | +844 |
+| Backtest, Jan 2025 – 12 Jul 2026 | 241 | 75.1% | 2.73 | +279,100 |
+
+* **The indicator reproduces the backtest.** This window really was flat.
+* **Silver ranged between ₹2.14 L and ₹2.49 L.** In a range the lock produces many
+  small wins (avg +794 pts), while losers run to the band (avg −2,139 pts). There are
+  no big trends to pay for them, so the result is about breakeven. Q1 did the same
+  (79% wins, PF 0.86).
+* **No sideways filter fixed it** (`research/range_filter.py`). Gates on daily or 4h
+  trend strength (ADX ≥ 15/20/25) all still had PF < 1.1 in Jul–Sep 2026. Silver's
+  range had large swings, so ADX still read "trending". One gate (Q1 + 4h ADX ≥ 15)
+  passed the 2025 rule, but it only cut the Jul–Sep loss from −₹0.5 L to −₹0.3 L.
+  Not adopted.
+* **Expect flat or slightly negative stretches lasting months, between trend phases.**
+  Don't re-tune after a flat stretch; that is how a strategy gets fitted to the last
+  few months.
+
+## 11. Caveats
 
 * **Small sample:** V1 is 28–32 trades per metal. A win rate of 60% ± 9% is the
   honest range.

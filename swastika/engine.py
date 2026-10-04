@@ -30,6 +30,7 @@ class Rules:
     day_filter: bool = False         # only trade with the Day table row
     require: tuple = ()              # extra timeframe rows that must agree, e.g. ("75m",)
     exit_rows: tuple = ()            # also exit when any of these timeframe rows turns against the trade
+    gate: tuple = ()                 # rows that must be true (1) to allow any entry, e.g. a trend-strength gate
     ema_filter: bool = False         # only trade on the 200 EMA's side
     adx_min: float | None = None     # skip entries when ADX(14) is below this
     long_only: bool = False
@@ -115,6 +116,8 @@ def simulate(minutes: pd.DataFrame, bars: pd.DataFrame, rules: Rules, contract: 
         if rules.day_filter and day_dir is not None and day_dir[k] != side:
             return False
         if any(rows[name][k] != side for name in rules.require):
+            return False
+        if any(not rows[name][k] for name in rules.gate):
             return False
         if rules.ema_filter and ema_dir[k] != side:
             return False
