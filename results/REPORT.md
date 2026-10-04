@@ -402,7 +402,41 @@ The user ran `pine/silver_5m_q1_bs_indicator.pine` (BS preset) on TradingView:
   Don't re-tune after a flat stretch; that is how a strategy gets fitted to the last
   few months.
 
-## 11. Caveats
+## 11. Option 2: a mean-reversion strategy for sideways markets (rejected)
+
+Goal: make money in flat periods, where the trend strategy breaks even. Tested
+intraday "fade the stretch" rules (`research/mean_reversion.py`, 256 configs per
+metal):
+* **Entry triggers:** Bollinger 2–3σ, VWAP ± 1.5–3 ATR, RSI(2) extremes, on 5m and 15m.
+* **Exits:** back at the mean, an ATR stop, a time stop, and always flat at session end.
+* **Optional filter:** trade only in sideways regimes.
+* **Same protocol as before:** chosen on 2025 only, at 20-tick fills.
+
+**Result: no edge.**
+
+| | Silver | Gold |
+|---|---|---|
+| Configs eligible on 2025 (≥ 5 trades/month, PF ≥ 1.3, profitable) | 0 / 256 | 0 / 256 |
+| Profitable at all in 2025 | 5 / 256 | 0 / 256 |
+| PF range with **zero** costs (main variants) | 0.86 – 1.15 | — |
+| Jul–Sep 2026 range, 5m variants (normal fills) | all lost (PF 0.56–0.82) | — |
+
+Even with no costs at all, profit factors cluster around 1, i.e. no edge. On 5–15 minute charts,
+Silver's stretched moves tend to keep going rather than snap back. Even the "sideways"
+months were made of strong intraday swings. That is also why the trend strategy works
+on short charts.
+
+**Gold as a diversifier doesn't help either** (`research/silver_gold_monthly.csv`).
+Silver BS and Gold BG monthly P&L correlate at 0.66, so the two metals trend in the same
+months. Jul–Sep 2026: Silver +₹0.6 L, Gold −₹1.1 L. Running both doubles the profit
+(₹146 L) but doesn't smooth the flat months: 14/20 months in profit, the same as
+Silver alone.
+
+**What's left:** flat stretches are built into trend-following on these two metals.
+Smoothing them would need markets that trend at *different* times (e.g. crude oil, an
+equity index, currencies), which needs data for them.
+
+## 12. Caveats
 
 * **Small sample:** V1 is 28–32 trades per metal. A win rate of 60% ± 9% is the
   honest range.
